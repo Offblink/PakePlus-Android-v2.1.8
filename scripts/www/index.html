@@ -1322,7 +1322,7 @@
 		const AudioManager = {
 			canvasWidth: 0,
 			canvasHeight: 0,
-			maxTimeWindow: 30, // 最大显示30秒数据
+			maxTimeWindow: 12, // 最大显示12秒数据
 			maxFrequency: 500, // 最大频率500Hz
 			
 			init: function() {
@@ -1427,7 +1427,7 @@
 				
 				// 绘制时间刻度
 				DOM.canvasCtx.textAlign = 'center';
-				const timeSteps = [0, 5, 10, 15, 20, 25, 30];
+				const timeSteps = [0, 2, 4, 6, 8, 10, 12];
 				timeSteps.forEach(time => {
 					const x = this.timeToX(time);
 					DOM.canvasCtx.beginPath();
@@ -1578,7 +1578,7 @@
 					
 					// 更新朗读进度
 					const elapsedTime = currentTime;
-					const progress = Math.min(elapsedTime / 30, 1); // 30秒完成朗读
+					const progress = Math.min(elapsedTime / 12, 1); // 12秒完成朗读
 					TextManager.updateProgress(progress);
 					
 					// 如果进度完成，自动停止
