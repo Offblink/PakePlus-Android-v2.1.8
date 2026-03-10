@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>声韵之声 - 声音频率时域分析</title>
+    <title>声音频率时域分析</title>
     <style>
         :root {
             --primary-color: #8a2be2;
@@ -701,7 +701,6 @@
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div>
-                    <h1>声韵之声</h1>
                     <p class="subtitle">跨性别语音训练助手 - 时域频率分析</p>
                 </div>
             </div>
@@ -870,7 +869,7 @@
         </main>
         
         <footer class="footer">
-            <p>声韵之声 - 跨性别语音训练助手 | 时域频率分析版本</p>
+            <p>跨性别语音训练助手 | 时域频率分析版本</p>
             <p class="privacy-note">隐私提示：所有音频处理均在本地浏览器中进行，不会上传到任何服务器。</p>
         </footer>
     </div>
@@ -1319,574 +1318,598 @@
             }
         };
         
-// 音频管理和可视化
-const AudioManager = {
-    canvasWidth: 0,
-    canvasHeight: 0,
-    maxTimeWindow: 30, // 最大显示30秒数据
-    maxFrequency: 500, // 最大频率500Hz
-    
-    init: function() {
-        DOM.startReadingBtn.addEventListener('click', () => this.startReading());
-        DOM.stopReadingBtn.addEventListener('click', () => this.stopReading());
-        
-        // 初始化画布尺寸
-        this.initCanvasSize();
-        
-        // 监听窗口大小变化
-        window.addEventListener('resize', () => this.initCanvasSize());
-        
-        // 绘制初始画布
-        this.drawInitialCanvas();
-    },
-    
-    initCanvasSize: function() {
-        const container = DOM.frequencyCanvas.parentElement;
-        this.canvasWidth = container.clientWidth;
-        this.canvasHeight = container.clientHeight;
-        DOM.frequencyCanvas.width = this.canvasWidth;
-        DOM.frequencyCanvas.height = this.canvasHeight;
-    },
-    
-    drawInitialCanvas: function() {
-        DOM.canvasCtx.fillStyle = 'rgba(10, 8, 20, 1)';
-        DOM.canvasCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-        
-        // 绘制声音范围背景
-        this.drawVoiceRanges();
-        
-        // 绘制坐标轴
-        this.drawAxis();
-        
-        // 绘制提示文字
-        DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        DOM.canvasCtx.font = '16px Arial';
-        DOM.canvasCtx.textAlign = 'center';
-        DOM.canvasCtx.fillText('请选择身份并开始朗读练习', this.canvasWidth / 2, this.canvasHeight / 2);
-    },
-    
-    drawVoiceRanges: function() {
-        // 绘制男性声音范围
-        const maleY1 = this.frequencyToY(voiceRanges.male.max);
-        const maleY2 = this.frequencyToY(voiceRanges.male.min);
-        const maleHeight = maleY2 - maleY1;
-        
-        DOM.canvasCtx.fillStyle = voiceRanges.male.color;
-        DOM.canvasCtx.fillRect(0, maleY1, this.canvasWidth, maleHeight);
-        DOM.canvasCtx.strokeStyle = voiceRanges.male.borderColor;
-        DOM.canvasCtx.strokeRect(0, maleY1, this.canvasWidth, maleHeight);
-        
-        // 绘制女性声音范围
-        const femaleY1 = this.frequencyToY(voiceRanges.female.max);
-        const femaleY2 = this.frequencyToY(voiceRanges.female.min);
-        const femaleHeight = femaleY2 - femaleY1;
-        
-        DOM.canvasCtx.fillStyle = voiceRanges.female.color;
-        DOM.canvasCtx.fillRect(0, femaleY1, this.canvasWidth, femaleHeight);
-        DOM.canvasCtx.strokeStyle = voiceRanges.female.borderColor;
-        DOM.canvasCtx.strokeRect(0, femaleY1, this.canvasWidth, femaleHeight);
-        
-        // 添加范围标签
-        DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        DOM.canvasCtx.font = '12px Arial';
-        DOM.canvasCtx.textAlign = 'left';
-        DOM.canvasCtx.fillText('男性声音范围', 10, maleY1 + 15);
-        DOM.canvasCtx.fillText('女性声音范围', 10, femaleY1 + 15);
-    },
-    
-    drawAxis: function() {
-        DOM.canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        DOM.canvasCtx.lineWidth = 1;
-        
-        // 绘制横轴（时间）
-        DOM.canvasCtx.beginPath();
-        DOM.canvasCtx.moveTo(0, this.canvasHeight - 20);
-        DOM.canvasCtx.lineTo(this.canvasWidth, this.canvasHeight - 20);
-        DOM.canvasCtx.stroke();
-        
-        // 绘制纵轴（频率）
-        DOM.canvasCtx.beginPath();
-        DOM.canvasCtx.moveTo(40, 0);
-        DOM.canvasCtx.lineTo(40, this.canvasHeight);
-        DOM.canvasCtx.stroke();
-        
-        // 绘制频率刻度
-        DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        DOM.canvasCtx.font = '10px Arial';
-        DOM.canvasCtx.textAlign = 'right';
-        
-        const freqSteps = [0, 100, 200, 300, 400, 500];
-        freqSteps.forEach(freq => {
-            const y = this.frequencyToY(freq);
-            DOM.canvasCtx.beginPath();
-            DOM.canvasCtx.moveTo(35, y);
-            DOM.canvasCtx.lineTo(40, y);
-            DOM.canvasCtx.stroke();
-            
-            DOM.canvasCtx.fillText(`${freq}Hz`, 33, y + 3);
-        });
-        
-        // 绘制时间刻度
-        DOM.canvasCtx.textAlign = 'center';
-        const timeSteps = [0, 5, 10, 15, 20, 25, 30];
-        timeSteps.forEach(time => {
-            const x = this.timeToX(time);
-            DOM.canvasCtx.beginPath();
-            DOM.canvasCtx.moveTo(x, this.canvasHeight - 20);
-            DOM.canvasCtx.lineTo(x, this.canvasHeight - 15);
-            DOM.canvasCtx.stroke();
-            
-            DOM.canvasCtx.fillText(`${time}s`, x, this.canvasHeight - 5);
-        });
-    },
-    
-    frequencyToY: function(frequency) {
-        return this.canvasHeight - 20 - (frequency / this.maxFrequency) * (this.canvasHeight - 40);
-    },
-    
-    timeToX: function(time) {
-        return 40 + (time / this.maxTimeWindow) * (this.canvasWidth - 80);
-    },
-    
-    startReading: async function() {
-        if (!AppState.identity) {
-            Utils.showMessage('warning', '请先选择您的身份');
-            return;
-        }
-        
-        if (!AppState.currentText) {
-            Utils.showMessage('warning', '请先生成朗读文本');
-            return;
-        }
-        
-        if (AppState.isReading) {
-            Utils.showMessage('warning', '朗读已在进行中');
-            return;
-        }
-        
-        try {
-            // 初始化音频分析器
-            if (!AppState.isRecording) {
-                await this.initAudioAnalyzer();
-            }
-            
-            // 开始朗读
-            AppState.isReading = true;
-            AppState.timeFrequencyData = [];
-            AppState.startTime = Date.now();
-            
-            // 更新UI
-            DOM.startReadingBtn.disabled = true;
-            DOM.stopReadingBtn.disabled = false;
-            DOM.statusIndicator.classList.add('active');
-            DOM.statusText.textContent = "正在朗读...";
-            Utils.showMessage('info', '朗读已开始，请对着麦克风清晰朗读文本');
-            
-            // 开始可视化
-            this.drawFrequencyGraph();
-            
-        } catch (error) {
-            console.error('启动录音时出错:', error);
-            Utils.showMessage('error', '无法访问麦克风。请确保已授予麦克风权限。');
-            AppState.isReading = false;
-            DOM.startReadingBtn.disabled = false;
-        }
-    },
-    
-    initAudioAnalyzer: async function() {
-        try {
-            // 检查浏览器支持
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('您的浏览器不支持音频输入，请使用Chrome、Edge或Firefox等现代浏览器');
-            }
-            
-            // 创建音频上下文
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) {
-                throw new Error('您的浏览器不支持Web Audio API');
-            }
-            
-            AppState.audioContext = new AudioContext();
-            
-            // 获取麦克风权限
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false
-                } 
-            });
-            
-            // 创建音频源
-            AppState.source = AppState.audioContext.createMediaStreamSource(stream);
-            
-            // 创建分析器
-            AppState.analyser = AppState.audioContext.createAnalyser();
-            AppState.analyser.fftSize = 2048;
-            AppState.analyser.smoothingTimeConstant = 0.8;
-            
-            // 连接音频节点
-            AppState.source.connect(AppState.analyser);
-            
-            // 创建数据数组
-            const bufferLength = AppState.analyser.frequencyBinCount;
-            AppState.dataArray = new Uint8Array(bufferLength);
-            
-            // 更新状态
-            AppState.isRecording = true;
-            
-            Utils.showMessage('success', '麦克风访问成功，可以开始朗读');
-            
-        } catch (error) {
-            console.error('音频初始化错误:', error);
-            throw error;
-        }
-    },
-    
-    drawFrequencyGraph: function() {
-        if (!AppState.isReading && !AppState.isRecording) return;
-        
-        // 清除画布
-        DOM.canvasCtx.fillStyle = 'rgba(10, 8, 20, 1)';
-        DOM.canvasCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-        
-        // 绘制声音范围背景
-        this.drawVoiceRanges();
-        
-        // 绘制坐标轴
-        this.drawAxis();
-        
-        // 获取频率数据
-        AppState.analyser.getByteFrequencyData(AppState.dataArray);
-        
-        // 计算当前峰值频率
-        let maxValue = 0;
-        let peakIndex = 0;
-        
-        for (let i = 0; i < AppState.dataArray.length; i++) {
-            if (AppState.dataArray[i] > maxValue) {
-                maxValue = AppState.dataArray[i];
-                peakIndex = i;
-            }
-        }
-        
-        const currentFrequency = peakIndex * (AppState.audioContext.sampleRate / AppState.analyser.fftSize);
-        
-        // 记录时间和频率数据（仅当朗读时）
-        if (AppState.isReading) {
-            const currentTime = (Date.now() - AppState.startTime) / 1000; // 转换为秒
-            AppState.timeFrequencyData.push({ time: currentTime, frequency: currentFrequency });
-            
-            // 更新朗读进度
-            const elapsedTime = currentTime;
-            const progress = Math.min(elapsedTime / 30, 1); // 30秒完成朗读
-            TextManager.updateProgress(progress);
-            
-            // 如果进度完成，自动停止
-            if (progress >= 1) {
-                this.stopReading();
-                return;
-            }
-        }
-        
-        // 更新当前频率显示
-        DOM.currentFrequency.textContent = `${Math.round(currentFrequency)} Hz`;
-        
-        // 判断当前频率范围
-        let rangeText = '';
-        if (currentFrequency < voiceRanges.male.min) {
-            rangeText = '极低频';
-        } else if (currentFrequency <= voiceRanges.male.max) {
-            rangeText = '男性范围';
-        } else if (currentFrequency <= voiceRanges.female.max) {
-            rangeText = '女性范围';
-        } else {
-            rangeText = '超高频';
-        }
-        DOM.currentRange.textContent = rangeText;
-        
-        // 计算并显示平均频率（使用过滤后的数据）
-        if (AppState.timeFrequencyData.length > 0) {
-            const frequencies = AppState.timeFrequencyData.map(d => d.frequency);
-            const avg = DataProcessor.calculateAverageFrequency(frequencies);
-            DOM.averageFrequency.textContent = `${Math.round(avg)} Hz`;
-            
-            // 显示数据质量信息
-            const qualityInfo = DataProcessor.getDataQualityInfo(frequencies);
-            DOM.filteredSamples.textContent = `${qualityInfo.filteredCount}/${qualityInfo.totalCount} 有效样本`;
-        }
-        
-        // 绘制时域频率散点图（不绘制异常点）
-        this.drawTimeFrequencyScatter();
-        
-        // 绘制当前频率点
-        this.drawCurrentFrequencyPoint(currentFrequency);
-        
-        // 继续动画
-        AppState.animationId = requestAnimationFrame(() => this.drawFrequencyGraph());
-    },
-    
-    drawTimeFrequencyScatter: function() {
-        if (AppState.timeFrequencyData.length === 0) return;
-        
-        // 确定显示的时间窗口
-        const currentTime = AppState.isReading ? 
-            (Date.now() - AppState.startTime) / 1000 : 
-            AppState.timeFrequencyData[AppState.timeFrequencyData.length - 1].time;
-        
-        const startTime = Math.max(0, currentTime - this.maxTimeWindow);
-        
-        // 提取窗口内的数据
-        const windowData = [];
-        const windowIndices = [];
-        
-        for (let i = 0; i < AppState.timeFrequencyData.length; i++) {
-            const point = AppState.timeFrequencyData[i];
-            if (point.time >= startTime) {
-                windowData.push(point.frequency);
-                windowIndices.push(i);
-            }
-        }
-        
-        if (windowData.length === 0) return;
-        
-        // 检测窗口内的异常点
-        const outlierResult = DataProcessor.filterOutliers(windowData);
-        const outlierIndicesSet = new Set(outlierResult.outliers);
-        
-        // 绘制正常样本点
-        DOM.canvasCtx.fillStyle = AppState.identity === 'mtf' ? '#ff6b9d' : '#2196f3';
-        
-        for (let i = 0; i < windowData.length; i++) {
-            // 跳过异常点
-            if (outlierIndicesSet.has(i)) continue;
-            
-            const point = AppState.timeFrequencyData[windowIndices[i]];
-            const x = this.timeToX(point.time - startTime);
-            const y = this.frequencyToY(point.frequency);
-            
-            // 绘制散点
-            DOM.canvasCtx.beginPath();
-            DOM.canvasCtx.arc(x, y, 3, 0, Math.PI * 2);
-            DOM.canvasCtx.fill();
-        }
-        
-        // 在右下角显示统计信息
-        DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        DOM.canvasCtx.font = '10px Arial';
-        DOM.canvasCtx.textAlign = 'right';
-        DOM.canvasCtx.fillText(
-            `正常点: ${windowData.length - outlierResult.outlierCount}`, 
-            this.canvasWidth - 10, 
-            20
-        );
-        DOM.canvasCtx.fillText(
-            `异常点: ${outlierResult.outlierCount}`, 
-            this.canvasWidth - 10, 
-            35
-        );
-    },
-    
-    drawCurrentFrequencyPoint: function(frequency) {
-        const y = this.frequencyToY(frequency);
-        
-        // 绘制当前频率水平线
-        DOM.canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        DOM.canvasCtx.setLineDash([5, 5]);
-        DOM.canvasCtx.beginPath();
-        DOM.canvasCtx.moveTo(40, y);
-        DOM.canvasCtx.lineTo(this.canvasWidth, y);
-        DOM.canvasCtx.stroke();
-        DOM.canvasCtx.setLineDash([]);
-        
-        // 绘制当前频率点
-        DOM.canvasCtx.fillStyle = '#FFD700'; // 金色
-        DOM.canvasCtx.beginPath();
-        DOM.canvasCtx.arc(this.canvasWidth - 20, y, 6, 0, Math.PI * 2);
-        DOM.canvasCtx.fill();
-        
-        // 标注当前频率值
-        DOM.canvasCtx.fillStyle = '#FFD700';
-        DOM.canvasCtx.font = 'bold 12px Arial';
-        DOM.canvasCtx.textAlign = 'right';
-        DOM.canvasCtx.fillText(`${Math.round(frequency)}Hz`, this.canvasWidth - 30, y - 8);
-    },
-    
-    stopReading: function() {
-        if (!AppState.isReading) return;
-        
-        AppState.isReading = false;
-        
-        // 更新UI
-        DOM.startReadingBtn.disabled = false;
-        DOM.stopReadingBtn.disabled = true;
-        DOM.statusIndicator.classList.remove('active');
-        DOM.statusText.textContent = "朗读已完成";
-        
-        // 计算平均峰值频率
-        this.calculateAndDisplayResults();
-        
-        // 停止可视化
-        if (AppState.animationId) {
-            cancelAnimationFrame(AppState.animationId);
-        }
-        
-        Utils.showMessage('success', '朗读已完成，正在分析您的声音...');
-    },
-    
-    stopRecording: function() {
-        if (!AppState.isRecording) return;
-        
-        AppState.isRecording = false;
-        AppState.isReading = false;
-        
-        // 停止音频流
-        if (AppState.source && AppState.source.mediaStream) {
-            AppState.source.mediaStream.getTracks().forEach(track => track.stop());
-        }
-        
-        // 断开音频节点
-        if (AppState.source) {
-            AppState.source.disconnect();
-        }
-        
-        // 关闭音频上下文
-        if (AppState.audioContext && AppState.audioContext.state !== 'closed') {
-            AppState.audioContext.close();
-        }
-        
-        // 停止动画
-        if (AppState.animationId) {
-            cancelAnimationFrame(AppState.animationId);
-        }
-        
-        // 更新UI
-        DOM.statusIndicator.classList.remove('active');
-        DOM.statusText.textContent = '已停止录音';
-        DOM.startReadingBtn.disabled = true;
-        DOM.stopReadingBtn.disabled = true;
-    },
-    
-    calculateAndDisplayResults: function() {
-        if (AppState.timeFrequencyData.length === 0) {
-            Utils.showMessage('warning', '未检测到有效的声音数据，请重试');
-            return;
-        }
-        
-        // 提取频率数据
-        const frequencies = AppState.timeFrequencyData.map(d => d.frequency);
-        
-        // 使用数据处理器计算平均频率（已过滤异常点）
-        const averageFrequency = DataProcessor.calculateAverageFrequency(frequencies);
-        const roundedAvg = Math.round(averageFrequency);
-        
-        // 获取数据质量信息
-        const qualityInfo = DataProcessor.getDataQualityInfo(frequencies);
-        
-        // 显示结果
-        DOM.resultValue.textContent = `${roundedAvg} Hz`;
-        DOM.resultValue.className = `result-value ${AppState.identity}`;
-        
-        // 显示数据质量
-        DOM.qualityDot.className = `quality-dot ${qualityInfo.class}`;
-        DOM.qualityText.textContent = qualityInfo.text;
-        
-        // 获取目标范围
-        const target = targetFrequencies[AppState.identity];
-        
-        // 评估结果
-        let evaluation = '';
-        let rating = 0;
-        let suggestions = [];
-        
-        if (AppState.identity === 'mtf') {
-            if (averageFrequency >= target.ideal) {
-                evaluation = '优秀！您的声音频率已达到女性音域的理想范围。';
-                rating = 5;
-                suggestions = [
-                    '继续保持目前的发声方式',
-                    '尝试在不同情境下使用这个音高',
-                    '练习控制音高的稳定性',
-                    '尝试加入更多情感变化'
-                ];
-            } else if (averageFrequency >= target.min) {
-                evaluation = '良好！您的声音频率已进入女性音域范围。';
-                rating = 4;
-                suggestions = [
-                    '继续练习提高音高稳定性',
-                    '尝试将音高再提高10-20Hz',
-                    '练习用这个音高进行日常对话',
-                    '注意呼吸控制，避免声音紧张'
-                ];
-            } else {
-                evaluation = '需要继续练习。您的声音频率略低于女性音域范围。';
-                rating = 3;
-                suggestions = [
-                    '尝试提高音高，目标是180Hz以上',
-                    '练习用头腔共鸣发声',
-                    '尝试模仿女性说话的音调',
-                    '每天进行10分钟的音高提升练习'
-                ];
-            }
-        } else { // FTM
-            if (averageFrequency <= target.ideal) {
-                evaluation = '优秀！您的声音频率已达到男性音域的理想范围。';
-                rating = 5;
-                suggestions = [
-                    '继续保持目前的发声方式',
-                    '尝试在不同情境下使用这个音高',
-                    '练习控制音高的稳定性',
-                    '尝试加入更多胸腔共鸣'
-                ];
-            } else if (averageFrequency <= target.max) {
-                evaluation = '良好！您的声音频率已进入男性音域范围。';
-                rating = 4;
-                suggestions = [
-                    '继续练习降低音高，使其更加稳定',
-                    '尝试将音高再降低10-20Hz',
-                    '练习用这个音高进行日常对话',
-                    '注意胸腔共鸣，使声音更浑厚'
-                ];
-            } else {
-                evaluation = '需要继续练习。您的声音频率略高于男性音域范围。';
-                rating = 3;
-                suggestions = [
-                    '尝试降低音高，目标是180Hz以下',
-                    '练习用胸腔共鸣发声',
-                    '尝试模仿男性说话的音调',
-                    '每天进行10分钟的音高降低练习'
-                ];
-            }
-        }
-        
-        // 显示评估结果
-        DOM.resultDescription.textContent = evaluation;
-        
-        // 显示评分星星
-        DOM.feedbackRating.innerHTML = '';
-        for (let i = 0; i < 5; i++) {
-            const star = document.createElement('span');
-            star.className = 'star';
-            star.innerHTML = i < rating ? '★' : '☆';
-            DOM.feedbackRating.appendChild(star);
-        }
-        
-        // 显示反馈内容
-        DOM.feedbackContent.textContent = `您的平均峰值频率为 ${roundedAvg} Hz（基于${qualityInfo.filteredCount}个有效样本）。${evaluation} 目标${AppState.identity === 'mtf' ? '女性' : '男性'}音域范围为 ${target.min}-${target.max} Hz，理想频率约为 ${target.ideal} Hz。`;
-        
-        // 显示建议列表
-        DOM.suggestionList.innerHTML = '';
-        suggestions.forEach(suggestion => {
-            const li = document.createElement('li');
-            li.textContent = suggestion;
-            DOM.suggestionList.appendChild(li);
-        });
-        
-        // 显示成功消息
-        Utils.showMessage('success', '声音分析完成！请查看评估与建议。');
-    }
-};
-        
+		// 音频管理和可视化
+		const AudioManager = {
+			canvasWidth: 0,
+			canvasHeight: 0,
+			maxTimeWindow: 30, // 最大显示30秒数据
+			maxFrequency: 500, // 最大频率500Hz
+			
+			init: function() {
+				DOM.startReadingBtn.addEventListener('click', () => this.startReading());
+				DOM.stopReadingBtn.addEventListener('click', () => this.stopReading());
+				
+				// 初始化画布尺寸
+				this.initCanvasSize();
+				
+				// 监听窗口大小变化
+				window.addEventListener('resize', () => this.initCanvasSize());
+				
+				// 绘制初始画布
+				this.drawInitialCanvas();
+			},
+			
+			initCanvasSize: function() {
+				const container = DOM.frequencyCanvas.parentElement;
+				this.canvasWidth = container.clientWidth;
+				this.canvasHeight = container.clientHeight;
+				DOM.frequencyCanvas.width = this.canvasWidth;
+				DOM.frequencyCanvas.height = this.canvasHeight;
+			},
+			
+			drawInitialCanvas: function() {
+				DOM.canvasCtx.fillStyle = 'rgba(10, 8, 20, 1)';
+				DOM.canvasCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+				
+				// 绘制声音范围背景
+				this.drawVoiceRanges();
+				
+				// 绘制坐标轴
+				this.drawAxis();
+				
+				// 绘制提示文字
+				DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+				DOM.canvasCtx.font = '16px Arial';
+				DOM.canvasCtx.textAlign = 'center';
+				DOM.canvasCtx.fillText('请选择身份并开始朗读练习', this.canvasWidth / 2, this.canvasHeight / 2);
+			},
+			
+			drawVoiceRanges: function() {
+				// 绘制男性声音范围
+				const maleY1 = this.frequencyToY(voiceRanges.male.max);
+				const maleY2 = this.frequencyToY(voiceRanges.male.min);
+				const maleHeight = maleY2 - maleY1;
+				
+				DOM.canvasCtx.fillStyle = voiceRanges.male.color;
+				DOM.canvasCtx.fillRect(0, maleY1, this.canvasWidth, maleHeight);
+				DOM.canvasCtx.strokeStyle = voiceRanges.male.borderColor;
+				DOM.canvasCtx.strokeRect(0, maleY1, this.canvasWidth, maleHeight);
+				
+				// 绘制女性声音范围
+				const femaleY1 = this.frequencyToY(voiceRanges.female.max);
+				const femaleY2 = this.frequencyToY(voiceRanges.female.min);
+				const femaleHeight = femaleY2 - femaleY1;
+				
+				DOM.canvasCtx.fillStyle = voiceRanges.female.color;
+				DOM.canvasCtx.fillRect(0, femaleY1, this.canvasWidth, femaleHeight);
+				DOM.canvasCtx.strokeStyle = voiceRanges.female.borderColor;
+				DOM.canvasCtx.strokeRect(0, femaleY1, this.canvasWidth, femaleHeight);
+				
+				// 添加范围标签
+				DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+				DOM.canvasCtx.font = '12px Arial';
+				DOM.canvasCtx.textAlign = 'left';
+				DOM.canvasCtx.fillText('男性声音范围', 10, maleY1 + 15);
+				DOM.canvasCtx.fillText('女性声音范围', 10, femaleY1 + 15);
+			},
+			
+			drawAxis: function() {
+				DOM.canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+				DOM.canvasCtx.lineWidth = 1;
+				
+				// 绘制横轴（时间）
+				DOM.canvasCtx.beginPath();
+				DOM.canvasCtx.moveTo(0, this.canvasHeight - 20);
+				DOM.canvasCtx.lineTo(this.canvasWidth, this.canvasHeight - 20);
+				DOM.canvasCtx.stroke();
+				
+				// 绘制纵轴（频率）
+				DOM.canvasCtx.beginPath();
+				DOM.canvasCtx.moveTo(40, 0);
+				DOM.canvasCtx.lineTo(40, this.canvasHeight);
+				DOM.canvasCtx.stroke();
+				
+				// 绘制频率刻度
+				DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+				DOM.canvasCtx.font = '10px Arial';
+				DOM.canvasCtx.textAlign = 'right';
+				
+				const freqSteps = [0, 100, 200, 300, 400, 500];
+				freqSteps.forEach(freq => {
+					const y = this.frequencyToY(freq);
+					DOM.canvasCtx.beginPath();
+					DOM.canvasCtx.moveTo(35, y);
+					DOM.canvasCtx.lineTo(40, y);
+					DOM.canvasCtx.stroke();
+					
+					DOM.canvasCtx.fillText(`${freq}Hz`, 33, y + 3);
+				});
+				
+				// 绘制时间刻度
+				DOM.canvasCtx.textAlign = 'center';
+				const timeSteps = [0, 5, 10, 15, 20, 25, 30];
+				timeSteps.forEach(time => {
+					const x = this.timeToX(time);
+					DOM.canvasCtx.beginPath();
+					DOM.canvasCtx.moveTo(x, this.canvasHeight - 20);
+					DOM.canvasCtx.lineTo(x, this.canvasHeight - 15);
+					DOM.canvasCtx.stroke();
+					
+					DOM.canvasCtx.fillText(`${time}s`, x, this.canvasHeight - 5);
+				});
+			},
+			
+			frequencyToY: function(frequency) {
+				return this.canvasHeight - 20 - (frequency / this.maxFrequency) * (this.canvasHeight - 40);
+			},
+			
+			timeToX: function(time) {
+				return 40 + (time / this.maxTimeWindow) * (this.canvasWidth - 80);
+			},
+			
+			startReading: async function() {
+				if (!AppState.identity) {
+					Utils.showMessage('warning', '请先选择您的身份');
+					return;
+				}
+				
+				if (!AppState.currentText) {
+					Utils.showMessage('warning', '请先生成朗读文本');
+					return;
+				}
+				
+				if (AppState.isReading) {
+					Utils.showMessage('warning', '朗读已在进行中');
+					return;
+				}
+				
+				try {
+					// 初始化音频分析器
+					if (!AppState.isRecording) {
+						await this.initAudioAnalyzer();
+					}
+					
+					// 开始新的朗读时，清空之前的数据
+					AppState.timeFrequencyData = [];
+					AppState.startTime = Date.now();
+					AppState.isReading = true;
+					
+					// 更新UI
+					DOM.startReadingBtn.disabled = true;
+					DOM.stopReadingBtn.disabled = false;
+					DOM.statusIndicator.classList.add('active');
+					DOM.statusText.textContent = "正在朗读...";
+					Utils.showMessage('info', '朗读已开始，请对着麦克风清晰朗读文本');
+					
+					// 开始可视化
+					this.drawFrequencyGraph();
+					
+				} catch (error) {
+					console.error('启动录音时出错:', error);
+					Utils.showMessage('error', '无法访问麦克风。请确保已授予麦克风权限。');
+					AppState.isReading = false;
+					DOM.startReadingBtn.disabled = false;
+				}
+			},
+			
+			initAudioAnalyzer: async function() {
+				try {
+					// 检查浏览器支持
+					if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+						throw new Error('您的浏览器不支持音频输入，请使用Chrome、Edge或Firefox等现代浏览器');
+					}
+					
+					// 创建音频上下文
+					const AudioContext = window.AudioContext || window.webkitAudioContext;
+					if (!AudioContext) {
+						throw new Error('您的浏览器不支持Web Audio API');
+					}
+					
+					AppState.audioContext = new AudioContext();
+					
+					// 获取麦克风权限
+					const stream = await navigator.mediaDevices.getUserMedia({ 
+						audio: {
+							echoCancellation: false,
+							noiseSuppression: false,
+							autoGainControl: false
+						} 
+					});
+					
+					// 创建音频源
+					AppState.source = AppState.audioContext.createMediaStreamSource(stream);
+					
+					// 创建分析器
+					AppState.analyser = AppState.audioContext.createAnalyser();
+					AppState.analyser.fftSize = 2048;
+					AppState.analyser.smoothingTimeConstant = 0.8;
+					
+					// 连接音频节点
+					AppState.source.connect(AppState.analyser);
+					
+					// 创建数据数组
+					const bufferLength = AppState.analyser.frequencyBinCount;
+					AppState.dataArray = new Uint8Array(bufferLength);
+					
+					// 更新状态
+					AppState.isRecording = true;
+					
+					Utils.showMessage('success', '麦克风访问成功，可以开始朗读');
+					
+				} catch (error) {
+					console.error('音频初始化错误:', error);
+					throw error;
+				}
+			},
+			
+			drawFrequencyGraph: function() {
+				if (!AppState.isRecording) return;
+				
+				// 清除画布
+				DOM.canvasCtx.fillStyle = 'rgba(10, 8, 20, 1)';
+				DOM.canvasCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+				
+				// 绘制声音范围背景
+				this.drawVoiceRanges();
+				
+				// 绘制坐标轴
+				this.drawAxis();
+				
+				// 获取频率数据
+				AppState.analyser.getByteFrequencyData(AppState.dataArray);
+				
+				// 计算当前峰值频率
+				let maxValue = 0;
+				let peakIndex = 0;
+				
+				for (let i = 0; i < AppState.dataArray.length; i++) {
+					if (AppState.dataArray[i] > maxValue) {
+						maxValue = AppState.dataArray[i];
+						peakIndex = i;
+					}
+				}
+				
+				const currentFrequency = peakIndex * (AppState.audioContext.sampleRate / AppState.analyser.fftSize);
+				
+				// 记录时间和频率数据（仅当朗读时）
+				if (AppState.isReading) {
+					const currentTime = (Date.now() - AppState.startTime) / 1000; // 转换为秒
+					AppState.timeFrequencyData.push({ time: currentTime, frequency: currentFrequency });
+					
+					// 更新朗读进度
+					const elapsedTime = currentTime;
+					const progress = Math.min(elapsedTime / 30, 1); // 30秒完成朗读
+					TextManager.updateProgress(progress);
+					
+					// 如果进度完成，自动停止
+					if (progress >= 1) {
+						this.stopReading();
+						return;
+					}
+				}
+				
+				// 更新当前频率显示
+				DOM.currentFrequency.textContent = `${Math.round(currentFrequency)} Hz`;
+				
+				// 判断当前频率范围
+				let rangeText = '';
+				if (currentFrequency < voiceRanges.male.min) {
+					rangeText = '极低频';
+				} else if (currentFrequency <= voiceRanges.male.max) {
+					rangeText = '男性范围';
+				} else if (currentFrequency <= voiceRanges.female.max) {
+					rangeText = '女性范围';
+				} else {
+					rangeText = '超高频';
+				}
+				DOM.currentRange.textContent = rangeText;
+				
+				// 计算并显示平均频率（使用过滤后的数据）
+				if (AppState.timeFrequencyData.length > 0) {
+					const frequencies = AppState.timeFrequencyData.map(d => d.frequency);
+					const avg = DataProcessor.calculateAverageFrequency(frequencies);
+					DOM.averageFrequency.textContent = `${Math.round(avg)} Hz`;
+					
+					// 显示数据质量信息
+					const qualityInfo = DataProcessor.getDataQualityInfo(frequencies);
+					DOM.filteredSamples.textContent = `${qualityInfo.filteredCount}/${qualityInfo.totalCount} 有效样本`;
+				}
+				
+				// 绘制所有样本点（包括历史数据）
+				this.drawAllScatterPoints();
+				
+				// 绘制当前频率点
+				this.drawCurrentFrequencyPoint(currentFrequency);
+				
+				// 继续动画（即使不在朗读状态，也继续绘制已采集的数据）
+				AppState.animationId = requestAnimationFrame(() => this.drawFrequencyGraph());
+			},
+			
+			drawAllScatterPoints: function() {
+				if (AppState.timeFrequencyData.length === 0) return;
+				
+				// 提取所有频率数据用于异常点检测
+				const allFrequencies = AppState.timeFrequencyData.map(d => d.frequency);
+				
+				// 检测所有数据中的异常点
+				const outlierResult = DataProcessor.filterOutliers(allFrequencies);
+				const outlierIndicesSet = new Set(outlierResult.outliers);
+				
+				// 确定显示的时间窗口
+				const currentTime = AppState.isReading ? 
+					(Date.now() - AppState.startTime) / 1000 : 
+					AppState.timeFrequencyData[AppState.timeFrequencyData.length - 1].time;
+				
+				const startTime = Math.max(0, currentTime - this.maxTimeWindow);
+				
+				// 绘制正常样本点
+				DOM.canvasCtx.fillStyle = AppState.identity === 'mtf' ? '#ff6b9d' : '#2196f3';
+				
+				for (let i = 0; i < AppState.timeFrequencyData.length; i++) {
+					const point = AppState.timeFrequencyData[i];
+					
+					// 只显示时间窗口内的点
+					if (point.time < startTime) continue;
+					
+					// 跳过异常点
+					if (outlierIndicesSet.has(i)) continue;
+					
+					const x = this.timeToX(point.time - startTime);
+					const y = this.frequencyToY(point.frequency);
+					
+					// 绘制散点
+					DOM.canvasCtx.beginPath();
+					DOM.canvasCtx.arc(x, y, 3, 0, Math.PI * 2);
+					DOM.canvasCtx.fill();
+				}
+				
+				// 在右下角显示统计信息
+				DOM.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+				DOM.canvasCtx.font = '10px Arial';
+				DOM.canvasCtx.textAlign = 'right';
+				
+				// 计算当前时间窗口内的数据点
+				const windowData = AppState.timeFrequencyData.filter(point => point.time >= startTime);
+				const windowFrequencies = windowData.map(d => d.frequency);
+				const windowOutlierResult = DataProcessor.filterOutliers(windowFrequencies);
+				
+				DOM.canvasCtx.fillText(
+					`总样本: ${AppState.timeFrequencyData.length}`, 
+					this.canvasWidth - 10, 
+					20
+				);
+				DOM.canvasCtx.fillText(
+					`有效样本: ${windowFrequencies.length - windowOutlierResult.outlierCount}`, 
+					this.canvasWidth - 10, 
+					35
+				);
+				DOM.canvasCtx.fillText(
+					`异常样本: ${windowOutlierResult.outlierCount}`, 
+					this.canvasWidth - 10, 
+					50
+				);
+			},
+			
+			drawCurrentFrequencyPoint: function(frequency) {
+				const y = this.frequencyToY(frequency);
+				
+				// 绘制当前频率水平线
+				DOM.canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+				DOM.canvasCtx.setLineDash([5, 5]);
+				DOM.canvasCtx.beginPath();
+				DOM.canvasCtx.moveTo(40, y);
+				DOM.canvasCtx.lineTo(this.canvasWidth, y);
+				DOM.canvasCtx.stroke();
+				DOM.canvasCtx.setLineDash([]);
+				
+				// 绘制当前频率点（仅当正在录音时显示）
+				if (AppState.isRecording) {
+					DOM.canvasCtx.fillStyle = '#FFD700'; // 金色
+					DOM.canvasCtx.beginPath();
+					DOM.canvasCtx.arc(this.canvasWidth - 20, y, 6, 0, Math.PI * 2);
+					DOM.canvasCtx.fill();
+					
+					// 标注当前频率值
+					DOM.canvasCtx.fillStyle = '#FFD700';
+					DOM.canvasCtx.font = 'bold 12px Arial';
+					DOM.canvasCtx.textAlign = 'right';
+					DOM.canvasCtx.fillText(`${Math.round(frequency)}Hz`, this.canvasWidth - 30, y - 8);
+				}
+			},
+			
+			stopReading: function() {
+				if (!AppState.isReading) return;
+				
+				AppState.isReading = false;
+				
+				// 更新UI
+				DOM.startReadingBtn.disabled = false;
+				DOM.stopReadingBtn.disabled = true;
+				DOM.statusIndicator.classList.remove('active');
+				DOM.statusText.textContent = "朗读已完成";
+				
+				// 计算平均峰值频率
+				this.calculateAndDisplayResults();
+				
+				// 注意：这里不停止动画，继续绘制已采集的数据
+				// 这样用户可以继续查看已采集的样本点
+				
+				Utils.showMessage('success', '朗读已完成，正在分析您的声音...');
+			},
+			
+			stopRecording: function() {
+				if (!AppState.isRecording) return;
+				
+				AppState.isRecording = false;
+				AppState.isReading = false;
+				
+				// 停止音频流
+				if (AppState.source && AppState.source.mediaStream) {
+					AppState.source.mediaStream.getTracks().forEach(track => track.stop());
+				}
+				
+				// 断开音频节点
+				if (AppState.source) {
+					AppState.source.disconnect();
+				}
+				
+				// 关闭音频上下文
+				if (AppState.audioContext && AppState.audioContext.state !== 'closed') {
+					AppState.audioContext.close();
+				}
+				
+				// 停止动画
+				if (AppState.animationId) {
+					cancelAnimationFrame(AppState.animationId);
+				}
+				
+				// 更新UI
+				DOM.statusIndicator.classList.remove('active');
+				DOM.statusText.textContent = '已停止录音';
+				DOM.startReadingBtn.disabled = true;
+				DOM.stopReadingBtn.disabled = true;
+				
+				// 绘制最终状态（确保显示所有已采集的点）
+				this.drawFinalState();
+			},
+			
+			drawFinalState: function() {
+				// 清除画布
+				DOM.canvasCtx.fillStyle = 'rgba(10, 8, 20, 1)';
+				DOM.canvasCtx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+				
+				// 绘制声音范围背景
+				this.drawVoiceRanges();
+				
+				// 绘制坐标轴
+				this.drawAxis();
+				
+				// 绘制所有样本点
+				this.drawAllScatterPoints();
+				
+				// 不绘制当前频率点和水平线（因为已停止录音）
+			},
+			
+			calculateAndDisplayResults: function() {
+				if (AppState.timeFrequencyData.length === 0) {
+					Utils.showMessage('warning', '未检测到有效的声音数据，请重试');
+					return;
+				}
+				
+				// 提取频率数据
+				const frequencies = AppState.timeFrequencyData.map(d => d.frequency);
+				
+				// 使用数据处理器计算平均频率（已过滤异常点）
+				const averageFrequency = DataProcessor.calculateAverageFrequency(frequencies);
+				const roundedAvg = Math.round(averageFrequency);
+				
+				// 获取数据质量信息
+				const qualityInfo = DataProcessor.getDataQualityInfo(frequencies);
+				
+				// 显示结果
+				DOM.resultValue.textContent = `${roundedAvg} Hz`;
+				DOM.resultValue.className = `result-value ${AppState.identity}`;
+				
+				// 显示数据质量
+				DOM.qualityDot.className = `quality-dot ${qualityInfo.class}`;
+				DOM.qualityText.textContent = qualityInfo.text;
+				
+				// 获取目标范围
+				const target = targetFrequencies[AppState.identity];
+				
+				// 评估结果
+				let evaluation = '';
+				let rating = 0;
+				let suggestions = [];
+				
+				if (AppState.identity === 'mtf') {
+					if (averageFrequency >= target.ideal) {
+						evaluation = '优秀！您的声音频率已达到女性音域的理想范围。';
+						rating = 5;
+						suggestions = [
+							'继续保持目前的发声方式',
+							'尝试在不同情境下使用这个音高',
+							'练习控制音高的稳定性',
+							'尝试加入更多情感变化'
+						];
+					} else if (averageFrequency >= target.min) {
+						evaluation = '良好！您的声音频率已进入女性音域范围。';
+						rating = 4;
+						suggestions = [
+							'继续练习提高音高稳定性',
+							'尝试将音高再提高10-20Hz',
+							'练习用这个音高进行日常对话',
+							'注意呼吸控制，避免声音紧张'
+						];
+					} else {
+						evaluation = '需要继续练习。您的声音频率略低于女性音域范围。';
+						rating = 3;
+						suggestions = [
+							'尝试提高音高，目标是180Hz以上',
+							'练习用头腔共鸣发声',
+							'尝试模仿女性说话的音调',
+							'每天进行10分钟的音高提升练习'
+						];
+					}
+				} else { // FTM
+					if (averageFrequency <= target.ideal) {
+						evaluation = '优秀！您的声音频率已达到男性音域的理想范围。';
+						rating = 5;
+						suggestions = [
+							'继续保持目前的发声方式',
+							'尝试在不同情境下使用这个音高',
+							'练习控制音高的稳定性',
+							'尝试加入更多胸腔共鸣'
+						];
+					} else if (averageFrequency <= target.max) {
+						evaluation = '良好！您的声音频率已进入男性音域范围。';
+						rating = 4;
+						suggestions = [
+							'继续练习降低音高，使其更加稳定',
+							'尝试将音高再降低10-20Hz',
+							'练习用这个音高进行日常对话',
+							'注意胸腔共鸣，使声音更浑厚'
+						];
+					} else {
+						evaluation = '需要继续练习。您的声音频率略高于男性音域范围。';
+						rating = 3;
+						suggestions = [
+							'尝试降低音高，目标是180Hz以下',
+							'练习用胸腔共鸣发声',
+							'尝试模仿男性说话的音调',
+							'每天进行10分钟的音高降低练习'
+						];
+					}
+				}
+				
+				// 显示评估结果
+				DOM.resultDescription.textContent = evaluation;
+				
+				// 显示评分星星
+				DOM.feedbackRating.innerHTML = '';
+				for (let i = 0; i < 5; i++) {
+					const star = document.createElement('span');
+					star.className = 'star';
+					star.innerHTML = i < rating ? '★' : '☆';
+					DOM.feedbackRating.appendChild(star);
+				}
+				
+				// 显示反馈内容
+				DOM.feedbackContent.textContent = `您的平均峰值频率为 ${roundedAvg} Hz（基于${qualityInfo.filteredCount}个有效样本）。${evaluation} 目标${AppState.identity === 'mtf' ? '女性' : '男性'}音域范围为 ${target.min}-${target.max} Hz，理想频率约为 ${target.ideal} Hz。`;
+				
+				// 显示建议列表
+				DOM.suggestionList.innerHTML = '';
+				suggestions.forEach(suggestion => {
+					const li = document.createElement('li');
+					li.textContent = suggestion;
+					DOM.suggestionList.appendChild(li);
+				});
+				
+				// 显示成功消息
+				Utils.showMessage('success', '声音分析完成！请查看评估与建议。');
+			}
+		};
+       
         // 初始化应用
         function initApp() {
             // 初始化各个模块
@@ -1896,7 +1919,7 @@ const AudioManager = {
             
             // 显示欢迎消息
             setTimeout(() => {
-                Utils.showMessage('info', '欢迎使用声韵之声！请先选择您的身份开始训练。');
+                Utils.showMessage('info', '欢迎使用！请先选择您的身份开始训练。');
             }, 1000);
         }
         
