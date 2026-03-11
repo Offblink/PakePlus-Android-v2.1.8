@@ -1,11 +1,1284 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>颜心 - 心情跟踪器</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #45a049;
+            --secondary-color: #2196F3;
+            --light-bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --text-light: #777777;
+            --border-color: #e0e0e0;
+            --today-color: #FF6B6B;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+            max-width: 100%;
+            height: 100vh;
+            height: 100dvh;
+        }
+        
+        .app-container {
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        /* 标题栏 */
+        .app-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        
+        .app-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        
+        /* 主要内容区域 */
+        .main-content {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 页面容器 */
+        .page-container {
+            flex: 1;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .page-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 按钮样式 */
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover, .btn:active {
+            background-color: var(--primary-dark);
+        }
+        
+        .btn-secondary {
+            background-color: #f0f0f0;
+            color: var(--text-color);
+        }
+        
+        .btn-secondary:hover, .btn-secondary:active {
+            background-color: #e0e0e0;
+        }
+        
+        .btn-icon {
+            background: none;
+            border: none;
+            color: inherit;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-icon:hover, .btn-icon:active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* 日历页面 */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .month-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .record-btn-container {
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .record-btn {
+            width: 100%;
+            max-width: 300px;
+            font-size: 1.1rem;
+            padding: 15px;
+        }
+        
+        .calendar-grid {
+            flex: 1;
+            padding: 0 20px 20px;
+            overflow-y: auto;
+        }
+        
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+        
+        .weekday {
+            padding: 8px 0;
+        }
+        
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        
+        .day-cell {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            border: 1px solid var(--border-color);
+            background-color: #f9f9f9;
+        }
+        
+        .day-cell.has-record {
+            border: none;
+        }
+        
+        .day-cell.today {
+            border: 2px solid var(--today-color);
+        }
+        
+        .day-cell:hover, .day-cell:active {
+            transform: scale(1.05);
+            box-shadow: var(--shadow);
+        }
+        
+        .day-cell.empty {
+            background-color: transparent;
+            border: none;
+            cursor: default;
+        }
+        
+        .day-cell.empty:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* 统计区域 */
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
+            background-color: #f9f9f9;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-title {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        
+        .stat-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* 详情页面 */
+        .detail-header {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .detail-title {
+            flex: 1;
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .records-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .record-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: var(--shadow);
+        }
+        
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .record-time {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .record-mood {
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        .record-color {
+            width: 100%;
+            height: 30px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .record-feeling {
+            font-size: 1rem;
+            line-height: 1.6;
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .no-records {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+        
+        /* 记录对话框 */
+        .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 20px;
+        }
+        
+        .dialog-overlay.active {
+            display: flex;
+        }
+        
+        .record-dialog {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .dialog-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .dialog-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .dialog-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .dialog-footer {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .dialog-footer .btn {
+            flex: 1;
+        }
+        
+        .color-preview {
+            width: 100%;
+            height: 80px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border: 2px solid var(--border-color);
+        }
+        
+        .color-slider-container {
+            margin: 20px 0;
+        }
+        
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .mood-slider {
+            width: 100%;
+            height: 40px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, 
+                #FFEB3B, #CDDC39, #8BC34A, #4CAF50, #2196F3, #1976D2, #0D47A1);
+            border-radius: 20px;
+            outline: none;
+        }
+        
+        .mood-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mood-slider::-moz-range-thumb {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mood-level-name {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .feeling-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            margin-top: 10px;
+        }
+        
+        /* 状态栏 */
+        .status-bar {
+            padding: 10px 20px;
+            background-color: #f9f9f9;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            color: var(--text-light);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            .app-container {
+                max-width: 100%;
+            }
+            
+            .calendar-header, .detail-header {
+                padding: 12px 15px;
+            }
+            
+            .calendar-grid {
+                padding: 0 15px 15px;
+            }
+            
+            .records-list {
+                padding: 15px;
+            }
+            
+            .record-card {
+                padding: 15px;
+            }
+        }
+        
+        /* 动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 标题栏 -->
+        <header class="app-header">
+            <h1 class="app-title">颜心</h1>
+        </header>
+        
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 日历页面 -->
+            <div id="calendar-page" class="page-container active">
+                <div class="calendar-header">
+                    <div class="month-nav">
+                        <button id="prev-month-btn" class="btn-icon">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h2 id="month-title" class="month-title">2023年12月</h2>
+                        <button id="next-month-btn" class="btn-icon">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="record-btn-container">
+                    <button id="record-btn" class="btn record-btn">
+                        <i class="fas fa-pencil-alt"></i> 记录此刻心情
+                    </button>
+                </div>
+                
+                <div class="calendar-grid">
+                    <div class="weekdays">
+                        <div class="weekday">一</div>
+                        <div class="weekday">二</div>
+                        <div class="weekday">三</div>
+                        <div class="weekday">四</div>
+                        <div class="weekday">五</div>
+                        <div class="weekday">六</div>
+                        <div class="weekday">日</div>
+                    </div>
+                    
+                    <div id="calendar-days" class="calendar-days">
+                        <!-- 日历日期将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+                
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <div class="stat-title">本周平均</div>
+                        <div id="weekly-average" class="stat-color"></div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-title">本月平均</div>
+                        <div id="monthly-average" class="stat-color"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 详情页面 -->
+            <div id="detail-page" class="page-container">
+                <div class="detail-header">
+                    <button id="back-btn" class="btn-icon">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2 id="detail-date" class="detail-title">2023-12-01</h2>
+                    <div style="width: 40px;"></div> <!-- 占位符，用于居中标题 -->
+                </div>
+                
+                <div id="records-list" class="records-list">
+                    <!-- 记录将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </main>
+        
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div id="register-date">开始日期: 2023-12-01</div>
+            <div id="stats-info">0条记录</div>
+        </div>
+        
+        <!-- 记录对话框 -->
+        <div id="record-dialog" class="dialog-overlay">
+            <div class="record-dialog">
+                <div class="dialog-header">
+                    <h2 class="dialog-title">记录此刻的心情</h2>
+                </div>
+                
+                <div class="dialog-content">
+                    <div id="color-preview" class="color-preview"></div>
+                    
+                    <div class="color-slider-container">
+                        <div class="slider-labels">
+                            <span>开心</span>
+                            <span id="mood-level-text">中性</span>
+                            <span>失落</span>
+                        </div>
+                        <input type="range" id="mood-slider" class="mood-slider" min="0" max="6" value="3" step="1">
+                    </div>
+                    
+                    <div id="mood-level-name" class="mood-level-name">中性</div>
+                    
+                    <div style="margin-top: 20px;">
+                        <label for="feeling-input">此刻的感受：</label>
+                        <textarea id="feeling-input" class="feeling-input" placeholder="写下你此刻的感受..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="dialog-footer">
+                    <button id="cancel-btn" class="btn btn-secondary">取消</button>
+                    <button id="save-btn" class="btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 心情等级到颜色的映射（黄色到蓝色渐变）
+        const moodColors = [
+            { level: 0, name: "非常开心", color: [255, 255, 0] },   // 黄色
+            { level: 1, name: "很开心", color: [200, 255, 0] },
+            { level: 2, name: "开心", color: [100, 255, 0] },
+            { level: 3, name: "中性", color: [0, 255, 0] },        // 绿色
+            { level: 4, name: "有点失落", color: [0, 200, 100] },
+            { level: 5, name: "失落", color: [0, 100, 200] },
+            { level: 6, name: "非常失落", color: [0, 0, 255] }     // 蓝色
+        ];
+        
+        // 心情等级名称
+        const moodNames = [
+            "非常开心", "很开心", "开心", "中性", "有点失落", "失落", "非常失落"
+        ];
+        
+        // 数据管理器
+        class DataManager {
+            constructor() {
+                this.STORAGE_KEY = 'yanxin_mood_data';
+                this.data = this.loadData();
+            }
+            
+            loadData() {
+                const dataStr = localStorage.getItem(this.STORAGE_KEY);
+                if (dataStr) {
+                    try {
+                        const data = JSON.parse(dataStr);
+                        // 确保数据结构完整
+                        return {
+                            registerDate: data.registerDate || new Date().toISOString().split('T')[0],
+                            dailyRecords: data.dailyRecords || {},
+                            dailyColors: data.dailyColors || {},
+                            weeklyAverages: data.weeklyAverages || {},
+                            monthlyAverages: data.monthlyAverages || {}
+                        };
+                    } catch (e) {
+                        console.error("加载数据失败:", e);
+                    }
+                }
+                
+                // 返回默认数据结构
+                return {
+                    registerDate: new Date().toISOString().split('T')[0],
+                    dailyRecords: {},
+                    dailyColors: {},
+                    weeklyAverages: {},
+                    monthlyAverages: {}
+                };
+            }
+            
+            saveData() {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+                } catch (e) {
+                    console.error("保存数据失败:", e);
+                }
+            }
+            
+            getRegisterDate() {
+                return this.data.registerDate;
+            }
+            
+            getMoodColor(level) {
+                return moodColors[level]?.color || [200, 200, 200];
+            }
+            
+            getMoodName(level) {
+                return moodNames[level] || "未知";
+            }
+            
+            addRecord(moodLevel, feeling) {
+                const now = new Date();
+                const dateKey = this.formatDate(now);
+                const timeKey = this.formatTime(now);
+                
+                // 创建新记录
+                const record = {
+                    timestamp: timeKey,
+                    moodLevel: moodLevel,
+                    feeling: feeling || "没有记录具体感受",
+                    color: this.getMoodColor(moodLevel)
+                };
+                
+                // 添加到数据
+                if (!this.data.dailyRecords[dateKey]) {
+                    this.data.dailyRecords[dateKey] = [];
+                }
+                
+                this.data.dailyRecords[dateKey].push(record);
+                
+                // 更新日颜色
+                this.updateDailyColor(dateKey);
+                
+                // 更新统计
+                this.updateStatistics(dateKey);
+                
+                // 保存数据
+                this.saveData();
+                
+                return dateKey;
+            }
+            
+            updateDailyColor(dateKey) {
+                if (this.data.dailyRecords[dateKey]) {
+                    const records = this.data.dailyRecords[dateKey];
+                    if (records.length > 0) {
+                        // 计算平均颜色
+                        let totalR = 0, totalG = 0, totalB = 0;
+                        records.forEach(record => {
+                            totalR += record.color[0];
+                            totalG += record.color[1];
+                            totalB += record.color[2];
+                        });
+                        
+                        const avgR = Math.round(totalR / records.length);
+                        const avgG = Math.round(totalG / records.length);
+                        const avgB = Math.round(totalB / records.length);
+                        
+                        this.data.dailyColors[dateKey] = [avgR, avgG, avgB];
+                    }
+                }
+            }
+            
+            updateStatistics(dateKey) {
+                try {
+                    const date = this.parseDate(dateKey);
+                    
+                    // 更新周平均
+                    const year = date.getFullYear();
+                    const weekNum = this.getWeekNumber(date);
+                    const weekKey = `${year}-W${weekNum.toString().padStart(2, '0')}`;
+                    
+                    // 获取本周所有日期
+                    const weekDates = this.getWeekDates(date);
+                    
+                    const weekColors = [];
+                    weekDates.forEach(d => {
+                        const dKey = this.formatDate(d);
+                        if (this.data.dailyColors[dKey]) {
+                            weekColors.push(this.data.dailyColors[dKey]);
+                        }
+                    });
+                    
+                    if (weekColors.length > 0) {
+                        const avgColor = this.calculateAverageColor(weekColors);
+                        this.data.weeklyAverages[weekKey] = avgColor;
+                    }
+                    
+                    // 更新月平均
+                    const monthKey = `${year}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    const monthDates = this.getMonthDates(date);
+                    
+                    const monthColors = [];
+                    monthDates.forEach(d => {
+                        const dKey = this.formatDate(d);
+                        if (this.data.dailyColors[dKey]) {
+                            monthColors.push(this.data.dailyColors[dKey]);
+                        }
+                    });
+                    
+                    if (monthColors.length > 0) {
+                        const avgColor = this.calculateAverageColor(monthColors);
+                        this.data.monthlyAverages[monthKey] = avgColor;
+                    }
+                } catch (e) {
+                    console.error("更新统计失败:", e);
+                }
+            }
+            
+            calculateAverageColor(colors) {
+                let totalR = 0, totalG = 0, totalB = 0;
+                colors.forEach(color => {
+                    totalR += color[0];
+                    totalG += color[1];
+                    totalB += color[2];
+                });
+                
+                return [
+                    Math.round(totalR / colors.length),
+                    Math.round(totalG / colors.length),
+                    Math.round(totalB / colors.length)
+                ];
+            }
+            
+            getDailyRecords(dateKey) {
+                return this.data.dailyRecords[dateKey] || [];
+            }
+            
+            getDailyColor(dateKey) {
+                return this.data.dailyColors[dateKey] || null;
+            }
+            
+            getWeeklyAverage(year, weekNum) {
+                const weekKey = `${year}-W${weekNum.toString().padStart(2, '0')}`;
+                return this.data.weeklyAverages[weekKey] || null;
+            }
+            
+            getMonthlyAverage(year, month) {
+                const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+                return this.data.monthlyAverages[monthKey] || null;
+            }
+            
+            getAllDates() {
+                return Object.keys(this.data.dailyColors);
+            }
+            
+            getMonthData(year, month) {
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const monthData = [];
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateKey = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    monthData.push(this.data.dailyColors[dateKey] || null);
+                }
+                
+                return monthData;
+            }
+            
+            getTotalRecords() {
+                let total = 0;
+                Object.values(this.data.dailyRecords).forEach(records => {
+                    total += records.length;
+                });
+                return total;
+            }
+            
+            getDaysWithRecords() {
+                return Object.keys(this.data.dailyRecords).length;
+            }
+            
+            // 工具方法
+            formatDate(date) {
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            formatTime(date) {
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                const seconds = date.getSeconds().toString().padStart(2, '0');
+                return `${hours}:${minutes}:${seconds}`;
+            }
+            
+            parseDate(dateStr) {
+                const parts = dateStr.split('-');
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+            
+            getWeekNumber(date) {
+                const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+                const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+                return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+            }
+            
+            getWeekDates(date) {
+                const dayOfWeek = date.getDay();
+                const startDate = new Date(date);
+                startDate.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+                
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + i);
+                    weekDates.push(currentDate);
+                }
+                
+                return weekDates;
+            }
+            
+            getMonthDates(date) {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                
+                const monthDates = [];
+                const currentDate = new Date(firstDay);
+                
+                while (currentDate <= lastDay) {
+                    monthDates.push(new Date(currentDate));
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                return monthDates;
+            }
+            
+            getTodayKey() {
+                return this.formatDate(new Date());
+            }
+        }
+        
+        // 应用主类
+        class MoodTrackerApp {
+            constructor() {
+                this.dataManager = new DataManager();
+                this.currentDate = new Date();
+                this.selectedDate = null;
+                
+                this.initElements();
+                this.bindEvents();
+                this.initApp();
+            }
+            
+            initElements() {
+                // 页面元素
+                this.calendarPage = document.getElementById('calendar-page');
+                this.detailPage = document.getElementById('detail-page');
+                
+                // 日历页面元素
+                this.monthTitle = document.getElementById('month-title');
+                this.prevMonthBtn = document.getElementById('prev-month-btn');
+                this.nextMonthBtn = document.getElementById('next-month-btn');
+                this.calendarDays = document.getElementById('calendar-days');
+                this.recordBtn = document.getElementById('record-btn');
+                this.weeklyAverage = document.getElementById('weekly-average');
+                this.monthlyAverage = document.getElementById('monthly-average');
+                
+                // 详情页面元素
+                this.backBtn = document.getElementById('back-btn');
+                this.detailDate = document.getElementById('detail-date');
+                this.recordsList = document.getElementById('records-list');
+                
+                // 对话框元素
+                this.recordDialog = document.getElementById('record-dialog');
+                this.colorPreview = document.getElementById('color-preview');
+                this.moodSlider = document.getElementById('mood-slider');
+                this.moodLevelText = document.getElementById('mood-level-text');
+                this.moodLevelName = document.getElementById('mood-level-name');
+                this.feelingInput = document.getElementById('feeling-input');
+                this.cancelBtn = document.getElementById('cancel-btn');
+                this.saveBtn = document.getElementById('save-btn');
+                
+                // 状态栏元素
+                this.registerDate = document.getElementById('register-date');
+                this.statsInfo = document.getElementById('stats-info');
+            }
+            
+            bindEvents() {
+                // 日历导航
+                this.prevMonthBtn.addEventListener('click', () => this.prevMonth());
+                this.nextMonthBtn.addEventListener('click', () => this.nextMonth());
+                
+                // 记录按钮
+                this.recordBtn.addEventListener('click', () => this.showRecordDialog());
+                
+                // 返回按钮
+                this.backBtn.addEventListener('click', () => this.showCalendar());
+                
+                // 对话框按钮
+                this.cancelBtn.addEventListener('click', () => this.hideRecordDialog());
+                this.saveBtn.addEventListener('click', () => this.saveRecord());
+                
+                // 心情滑块
+                this.moodSlider.addEventListener('input', (e) => this.updateMoodPreview(e.target.value));
+                
+                // 点击对话框外部关闭
+                this.recordDialog.addEventListener('click', (e) => {
+                    if (e.target === this.recordDialog) {
+                        this.hideRecordDialog();
+                    }
+                });
+            }
+            
+            initApp() {
+                // 更新注册日期
+                this.registerDate.textContent = `开始日期: ${this.dataManager.getRegisterDate()}`;
+                
+                // 更新统计信息
+                this.updateStats();
+                
+                // 显示日历
+                this.updateCalendar();
+            }
+            
+            updateCalendar() {
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth() + 1;
+                
+                // 更新月份标题
+                this.monthTitle.textContent = `${year}年${month}月`;
+                
+                // 生成日历
+                this.generateCalendar(year, month);
+                
+                // 更新统计颜色
+                this.updateStatsColors(year, month);
+            }
+            
+            generateCalendar(year, month) {
+                this.calendarDays.innerHTML = '';
+                
+                // 获取当月第一天和最后一天
+                const firstDay = new Date(year, month - 1, 1);
+                const lastDay = new Date(year, month, 0);
+                
+                // 获取当月第一天是周几 (0=周日, 1=周一, ..., 6=周六)
+                let firstDayOfWeek = firstDay.getDay();
+                // 转换为周一为第一天
+                firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+                
+                // 获取当月天数
+                const daysInMonth = lastDay.getDate();
+                
+                // 获取当月数据
+                const monthData = this.dataManager.getMonthData(year, month);
+                
+                // 添加上个月的空白格子
+                for (let i = 0; i < firstDayOfWeek; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'day-cell empty';
+                    this.calendarDays.appendChild(emptyCell);
+                }
+                
+                // 添加当月日期格子
+                const todayKey = this.dataManager.getTodayKey();
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayCell = document.createElement('div');
+                    const dateKey = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    
+                    dayCell.textContent = day;
+                    dayCell.className = 'day-cell';
+                    
+                    // 检查是否有记录
+                    const dayColor = monthData[day - 1];
+                    if (dayColor) {
+                        dayCell.classList.add('has-record');
+                        dayCell.style.backgroundColor = `rgb(${dayColor[0]}, ${dayColor[1]}, ${dayColor[2]})`;
+                        
+                        // 设置文字颜色以确保可读性
+                        const brightness = (dayColor[0] * 299 + dayColor[1] * 587 + dayColor[2] * 114) / 1000;
+                        dayCell.style.color = brightness > 128 ? '#000' : '#fff';
+                    }
+                    
+                    // 如果是今天，高亮显示
+                    if (dateKey === todayKey) {
+                        dayCell.classList.add('today');
+                    }
+                    
+                    // 添加点击事件
+                    dayCell.addEventListener('click', () => this.showDateDetail(dateKey));
+                    
+                    this.calendarDays.appendChild(dayCell);
+                }
+                
+                // 禁用超出范围的导航按钮
+                const registerDate = this.dataManager.getRegisterDate();
+                const registerYear = parseInt(registerDate.split('-')[0]);
+                const registerMonth = parseInt(registerDate.split('-')[1]);
+                
+                this.prevMonthBtn.disabled = (year < registerYear) || (year === registerYear && month <= registerMonth);
+                
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth() + 1;
+                
+                this.nextMonthBtn.disabled = (year > currentYear) || (year === currentYear && month >= currentMonth);
+            }
+            
+            updateStatsColors(year, month) {
+                // 获取周数和日期
+                const now = new Date();
+                const weekNum = this.dataManager.getWeekNumber(now);
+                
+                // 获取周平均颜色
+                const weeklyColor = this.dataManager.getWeeklyAverage(year, weekNum);
+                if (weeklyColor) {
+                    this.weeklyAverage.style.backgroundColor = `rgb(${weeklyColor[0]}, ${weeklyColor[1]}, ${weeklyColor[2]})`;
+                } else {
+                    this.weeklyAverage.style.backgroundColor = '#f0f0f0';
+                }
+                
+                // 获取月平均颜色
+                const monthlyColor = this.dataManager.getMonthlyAverage(year, month);
+                if (monthlyColor) {
+                    this.monthlyAverage.style.backgroundColor = `rgb(${monthlyColor[0]}, ${monthlyColor[1]}, ${monthlyColor[2]})`;
+                } else {
+                    this.monthlyAverage.style.backgroundColor = '#f0f0f0';
+                }
+            }
+            
+            updateStats() {
+                const totalRecords = this.dataManager.getTotalRecords();
+                const daysWithRecords = this.dataManager.getDaysWithRecords();
+                
+                this.statsInfo.textContent = `${totalRecords}条记录`;
+            }
+            
+            prevMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                this.updateCalendar();
+            }
+            
+            nextMonth() {
+                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                this.updateCalendar();
+            }
+            
+            showDateDetail(dateKey) {
+                this.selectedDate = dateKey;
+                
+                // 更新详情页面标题
+                this.detailDate.textContent = dateKey;
+                
+                // 清空记录列表
+                this.recordsList.innerHTML = '';
+                
+                // 获取该天的记录
+                const records = this.dataManager.getDailyRecords(dateKey);
+                
+                if (records.length === 0) {
+                    const noRecords = document.createElement('div');
+                    noRecords.className = 'no-records';
+                    noRecords.textContent = '这一天没有心情记录';
+                    this.recordsList.appendChild(noRecords);
+                } else {
+                    // 添加记录卡片
+                    records.forEach(record => {
+                        const recordCard = this.createRecordCard(record);
+                        this.recordsList.appendChild(recordCard);
+                    });
+                }
+                
+                // 切换到详情页面
+                this.showPage('detail');
+            }
+            
+            createRecordCard(record) {
+                const card = document.createElement('div');
+                card.className = 'record-card fade-in';
+                
+                const moodName = this.dataManager.getMoodName(record.moodLevel);
+                
+                card.innerHTML = `
+                    <div class="record-header">
+                        <div class="record-time">${record.timestamp}</div>
+                        <div class="record-mood">${moodName}</div>
+                    </div>
+                    <div class="record-color" style="background-color: rgb(${record.color[0]}, ${record.color[1]}, ${record.color[2]})"></div>
+                    <div class="record-feeling">${record.feeling}</div>
+                `;
+                
+                return card;
+            }
+            
+            showPage(pageName) {
+                // 隐藏所有页面
+                this.calendarPage.classList.remove('active');
+                this.detailPage.classList.remove('active');
+                
+                // 显示指定页面
+                if (pageName === 'calendar') {
+                    this.calendarPage.classList.add('active');
+                } else if (pageName === 'detail') {
+                    this.detailPage.classList.add('active');
+                }
+            }
+            
+            showCalendar() {
+                this.showPage('calendar');
+            }
+            
+            showRecordDialog() {
+                // 重置对话框
+                this.moodSlider.value = 3;
+                this.feelingInput.value = '';
+                this.updateMoodPreview(3);
+                
+                // 显示对话框
+                this.recordDialog.classList.add('active');
+            }
+            
+            hideRecordDialog() {
+                this.recordDialog.classList.remove('active');
+            }
+            
+            updateMoodPreview(level) {
+                const moodLevel = parseInt(level);
+                const moodColor = this.dataManager.getMoodColor(moodLevel);
+                const moodName = this.dataManager.getMoodName(moodLevel);
+                
+                // 更新颜色预览
+                this.colorPreview.style.backgroundColor = `rgb(${moodColor[0]}, ${moodColor[1]}, ${moodColor[2]})`;
+                
+                // 更新心情等级文本
+                this.moodLevelText.textContent = moodName;
+                this.moodLevelName.textContent = moodName;
+            }
+            
+            saveRecord() {
+                const moodLevel = parseInt(this.moodSlider.value);
+                const feeling = this.feelingInput.value.trim();
+                
+                if (feeling === '') {
+                    alert('请输入您的感受');
+                    return;
+                }
+                
+                // 保存记录
+                const dateKey = this.dataManager.addRecord(moodLevel, feeling);
+                
+                // 关闭对话框
+                this.hideRecordDialog();
+                
+                // 更新界面
+                this.updateCalendar();
+                this.updateStats();
+                
+                // 如果当前查看的正是今天，更新详情页面
+                const todayKey = this.dataManager.getTodayKey();
+                if (this.selectedDate === todayKey || (this.selectedDate === null && dateKey === todayKey)) {
+                    this.showDateDetail(todayKey);
+                }
+                
+                // 显示成功消息
+                this.showMessage('心情记录已保存！');
+            }
+            
+            showMessage(text) {
+                // 创建消息元素
+                const messageEl = document.createElement('div');
+                messageEl.textContent = text;
+                messageEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background-color: var(--primary-color);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                    z-index: 1000;
+                    font-weight: 600;
+                    animation: fadeIn 0.3s ease-out;
+                `;
+                
+                document.body.appendChild(messageEl);
+                
+                // 3秒后移除消息
+                setTimeout(() => {
+                    messageEl.style.opacity = '0';
+                    messageEl.style.transform = 'translateX(-50%) translateY(-20px)';
+                    messageEl.style.transition = 'opacity 0.3s, transform 0.3s';
+                    
+                    setTimeout(() => {
+                        if (messageEl.parentNode) {
+                            messageEl.parentNode.removeChild(messageEl);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+        }
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new MoodTrackerApp();
+        });
+    </script>
+</body>
 </html>
