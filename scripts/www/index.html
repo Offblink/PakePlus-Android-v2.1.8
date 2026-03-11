@@ -24,6 +24,8 @@
             --border-color: #e0e0e0;
             --today-color: #FF6B6B;
             --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            --edit-color: #2196F3;
+            --delete-color: #f44336;
         }
         
         body {
@@ -281,12 +283,61 @@
             padding: 20px;
         }
         
-        .record-card {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
+        /* 记录卡片容器 - 支持滑动操作 */
+        .record-card-container {
+            position: relative;
             margin-bottom: 15px;
+            border-radius: 12px;
+            overflow: hidden;
             box-shadow: var(--shadow);
+            background-color: var(--card-bg);
+        }
+        
+        .record-card {
+            position: relative;
+            z-index: 2;
+            background-color: var(--card-bg);
+            padding: 20px;
+            transition: transform 0.3s ease;
+            border-radius: 12px;
+        }
+        
+        .record-card.swiping {
+            transition: none;
+        }
+        
+        .record-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+        
+        .record-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            padding: 0 30px;
+            min-width: 100px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .record-action:hover, .record-action:active {
+            filter: brightness(0.9);
+        }
+        
+        .record-action.edit {
+            background-color: var(--edit-color);
+        }
+        
+        .record-action.delete {
+            background-color: var(--delete-color);
         }
         
         .record-header {
@@ -348,7 +399,7 @@
             display: flex;
         }
         
-        .record-dialog {
+        .record-dialog, .edit-dialog {
             background-color: var(--card-bg);
             border-radius: 16px;
             width: 100%;
@@ -490,6 +541,11 @@
             .record-card {
                 padding: 15px;
             }
+            
+            .record-action {
+                padding: 0 20px;
+                min-width: 80px;
+            }
         }
         
         /* 动画 */
@@ -500,6 +556,43 @@
         
         .fade-in {
             animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* 确认对话框 */
+        .confirm-dialog {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 350px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .confirm-content {
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .confirm-message {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        
+        .confirm-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .confirm-buttons .btn {
+            flex: 1;
+        }
+        
+        .btn-danger {
+            background-color: var(--delete-color);
+        }
+        
+        .btn-danger:hover, .btn-danger:active {
+            background-color: #d32f2f;
         }
     </style>
 </head>
@@ -615,6 +708,53 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 编辑记录对话框 -->
+        <div id="edit-dialog" class="dialog-overlay">
+            <div class="edit-dialog">
+                <div class="dialog-header">
+                    <h2 class="dialog-title">编辑心情记录</h2>
+                </div>
+                
+                <div class="dialog-content">
+                    <div id="edit-color-preview" class="color-preview"></div>
+                    
+                    <div class="color-slider-container">
+                        <div class="slider-labels">
+                            <span>开心</span>
+                            <span id="edit-mood-level-text">中性</span>
+                            <span>失落</span>
+                        </div>
+                        <input type="range" id="edit-mood-slider" class="mood-slider" min="0" max="6" value="3" step="1">
+                    </div>
+                    
+                    <div id="edit-mood-level-name" class="mood-level-name">中性</div>
+                    
+                    <div style="margin-top: 20px;">
+                        <label for="edit-feeling-input">此刻的感受：</label>
+                        <textarea id="edit-feeling-input" class="feeling-input" placeholder="写下你此刻的感受..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="dialog-footer">
+                    <button id="edit-cancel-btn" class="btn btn-secondary">取消</button>
+                    <button id="edit-save-btn" class="btn">保存</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 确认删除对话框 -->
+        <div id="confirm-dialog" class="dialog-overlay">
+            <div class="confirm-dialog">
+                <div class="confirm-content">
+                    <div class="confirm-message">确定要删除这条心情记录吗？</div>
+                    <div class="confirm-buttons">
+                        <button id="confirm-cancel-btn" class="btn btn-secondary">取消</button>
+                        <button id="confirm-delete-btn" class="btn btn-danger">删除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -689,13 +829,14 @@
                 return moodNames[level] || "未知";
             }
             
-            addRecord(moodLevel, feeling) {
+            addRecord(moodLevel, feeling, timestamp = null) {
                 const now = new Date();
                 const dateKey = this.formatDate(now);
-                const timeKey = this.formatTime(now);
+                const timeKey = timestamp || this.formatTime(now);
                 
                 // 创建新记录
                 const record = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // 唯一ID
                     timestamp: timeKey,
                     moodLevel: moodLevel,
                     feeling: feeling || "没有记录具体感受",
@@ -718,7 +859,65 @@
                 // 保存数据
                 this.saveData();
                 
-                return dateKey;
+                return { dateKey, record };
+            }
+            
+            updateRecord(dateKey, recordId, moodLevel, feeling) {
+                if (!this.data.dailyRecords[dateKey]) {
+                    return false;
+                }
+                
+                const recordIndex = this.data.dailyRecords[dateKey].findIndex(r => r.id === recordId);
+                if (recordIndex === -1) {
+                    return false;
+                }
+                
+                // 更新记录
+                this.data.dailyRecords[dateKey][recordIndex].moodLevel = moodLevel;
+                this.data.dailyRecords[dateKey][recordIndex].feeling = feeling;
+                this.data.dailyRecords[dateKey][recordIndex].color = this.getMoodColor(moodLevel);
+                
+                // 更新日颜色
+                this.updateDailyColor(dateKey);
+                
+                // 更新统计
+                this.updateStatistics(dateKey);
+                
+                // 保存数据
+                this.saveData();
+                
+                return true;
+            }
+            
+            deleteRecord(dateKey, recordId) {
+                if (!this.data.dailyRecords[dateKey]) {
+                    return false;
+                }
+                
+                const recordIndex = this.data.dailyRecords[dateKey].findIndex(r => r.id === recordId);
+                if (recordIndex === -1) {
+                    return false;
+                }
+                
+                // 删除记录
+                this.data.dailyRecords[dateKey].splice(recordIndex, 1);
+                
+                // 如果这天没有记录了，删除这个日期
+                if (this.data.dailyRecords[dateKey].length === 0) {
+                    delete this.data.dailyRecords[dateKey];
+                    delete this.data.dailyColors[dateKey];
+                } else {
+                    // 否则更新日颜色
+                    this.updateDailyColor(dateKey);
+                }
+                
+                // 更新统计
+                this.updateStatistics(dateKey);
+                
+                // 保存数据
+                this.saveData();
+                
+                return true;
             }
             
             updateDailyColor(dateKey) {
@@ -918,6 +1117,7 @@
                 this.dataManager = new DataManager();
                 this.currentDate = new Date();
                 this.selectedDate = null;
+                this.currentRecord = null; // 当前正在编辑/删除的记录
                 
                 this.initElements();
                 this.bindEvents();
@@ -943,7 +1143,7 @@
                 this.detailDate = document.getElementById('detail-date');
                 this.recordsList = document.getElementById('records-list');
                 
-                // 对话框元素
+                // 记录对话框元素
                 this.recordDialog = document.getElementById('record-dialog');
                 this.colorPreview = document.getElementById('color-preview');
                 this.moodSlider = document.getElementById('mood-slider');
@@ -952,6 +1152,21 @@
                 this.feelingInput = document.getElementById('feeling-input');
                 this.cancelBtn = document.getElementById('cancel-btn');
                 this.saveBtn = document.getElementById('save-btn');
+                
+                // 编辑对话框元素
+                this.editDialog = document.getElementById('edit-dialog');
+                this.editColorPreview = document.getElementById('edit-color-preview');
+                this.editMoodSlider = document.getElementById('edit-mood-slider');
+                this.editMoodLevelText = document.getElementById('edit-mood-level-text');
+                this.editMoodLevelName = document.getElementById('edit-mood-level-name');
+                this.editFeelingInput = document.getElementById('edit-feeling-input');
+                this.editCancelBtn = document.getElementById('edit-cancel-btn');
+                this.editSaveBtn = document.getElementById('edit-save-btn');
+                
+                // 确认删除对话框元素
+                this.confirmDialog = document.getElementById('confirm-dialog');
+                this.confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+                this.confirmDeleteBtn = document.getElementById('confirm-delete-btn');
                 
                 // 状态栏元素
                 this.registerDate = document.getElementById('register-date');
@@ -969,17 +1184,38 @@
                 // 返回按钮
                 this.backBtn.addEventListener('click', () => this.showCalendar());
                 
-                // 对话框按钮
+                // 记录对话框按钮
                 this.cancelBtn.addEventListener('click', () => this.hideRecordDialog());
                 this.saveBtn.addEventListener('click', () => this.saveRecord());
                 
+                // 编辑对话框按钮
+                this.editCancelBtn.addEventListener('click', () => this.hideEditDialog());
+                this.editSaveBtn.addEventListener('click', () => this.saveEditedRecord());
+                
+                // 确认删除对话框按钮
+                this.confirmCancelBtn.addEventListener('click', () => this.hideConfirmDialog());
+                this.confirmDeleteBtn.addEventListener('click', () => this.deleteRecord());
+                
                 // 心情滑块
                 this.moodSlider.addEventListener('input', (e) => this.updateMoodPreview(e.target.value));
+                this.editMoodSlider.addEventListener('input', (e) => this.updateEditMoodPreview(e.target.value));
                 
                 // 点击对话框外部关闭
                 this.recordDialog.addEventListener('click', (e) => {
                     if (e.target === this.recordDialog) {
                         this.hideRecordDialog();
+                    }
+                });
+                
+                this.editDialog.addEventListener('click', (e) => {
+                    if (e.target === this.editDialog) {
+                        this.hideEditDialog();
+                    }
+                });
+                
+                this.confirmDialog.addEventListener('click', (e) => {
+                    if (e.target === this.confirmDialog) {
+                        this.hideConfirmDialog();
                     }
                 });
             }
@@ -1139,8 +1375,8 @@
                 } else {
                     // 添加记录卡片
                     records.forEach(record => {
-                        const recordCard = this.createRecordCard(record);
-                        this.recordsList.appendChild(recordCard);
+                        const recordCardContainer = this.createRecordCard(record);
+                        this.recordsList.appendChild(recordCardContainer);
                     });
                 }
                 
@@ -1149,10 +1385,38 @@
             }
             
             createRecordCard(record) {
-                const card = document.createElement('div');
-                card.className = 'record-card fade-in';
+                const container = document.createElement('div');
+                container.className = 'record-card-container fade-in';
+                container.dataset.recordId = record.id;
                 
                 const moodName = this.dataManager.getMoodName(record.moodLevel);
+                
+                // 创建操作按钮
+                const actions = document.createElement('div');
+                actions.className = 'record-actions';
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'record-action edit';
+                editBtn.innerHTML = '<i class="fas fa-edit"></i> 编辑';
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showEditDialog(record);
+                });
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'record-action delete';
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showConfirmDialog(record);
+                });
+                
+                actions.appendChild(editBtn);
+                actions.appendChild(deleteBtn);
+                
+                // 创建记录卡片
+                const card = document.createElement('div');
+                card.className = 'record-card';
                 
                 card.innerHTML = `
                     <div class="record-header">
@@ -1163,7 +1427,185 @@
                     <div class="record-feeling">${record.feeling}</div>
                 `;
                 
-                return card;
+                container.appendChild(card);
+                container.appendChild(actions);
+                
+                // 添加触摸事件支持滑动操作
+                this.addSwipeEvents(container, card, actions);
+                
+                return container;
+            }
+            
+            addSwipeEvents(container, card, actions) {
+                let startX = 0;
+                let currentX = 0;
+                let isSwiping = false;
+                let actionsWidth = 0;
+                
+                // 计算操作按钮的宽度
+                const calculateActionsWidth = () => {
+                    return actions.offsetWidth;
+                };
+                
+                // 触摸开始
+                card.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    currentX = startX;
+                    isSwiping = false;
+                    actionsWidth = calculateActionsWidth();
+                    
+                    // 移除过渡效果以便平滑拖动
+                    card.classList.add('swiping');
+                });
+                
+                // 触摸移动
+                card.addEventListener('touchmove', (e) => {
+                    if (!startX) return;
+                    
+                    currentX = e.touches[0].clientX;
+                    const diffX = startX - currentX;
+                    
+                    // 如果横向移动超过10px，认为是滑动
+                    if (Math.abs(diffX) > 10) {
+                        isSwiping = true;
+                    }
+                    
+                    if (isSwiping) {
+                        e.preventDefault(); // 防止页面滚动
+                        
+                        // 计算移动距离，限制在0到actionsWidth之间
+                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+                        
+                        // 如果是向右滑动（显示操作按钮），限制移动距离
+                        if (diffX < 0) {
+                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+                        }
+                        
+                        // 应用变换
+                        card.style.transform = `translateX(${-translateX}px)`;
+                    }
+                });
+                
+                // 触摸结束
+                card.addEventListener('touchend', () => {
+                    card.classList.remove('swiping');
+                    
+                    if (!isSwiping) {
+                        // 如果没有滑动，恢复位置
+                        card.style.transform = 'translateX(0)';
+                        card.style.transition = 'transform 0.3s ease';
+                        return;
+                    }
+                    
+                    const diffX = startX - currentX;
+                    const threshold = actionsWidth * 0.3; // 30%阈值
+                    
+                    // 添加过渡效果
+                    card.style.transition = 'transform 0.3s ease';
+                    
+                    if (diffX > threshold) {
+                        // 向左滑动超过阈值，显示操作按钮
+                        card.style.transform = `translateX(-${actionsWidth}px)`;
+                    } else {
+                        // 向右滑动或未达阈值，隐藏操作按钮
+                        card.style.transform = 'translateX(0)';
+                    }
+                    
+                    startX = 0;
+                    currentX = 0;
+                    isSwiping = false;
+                });
+                
+                // 点击卡片其他区域时隐藏操作按钮
+                card.addEventListener('click', (e) => {
+                    // 只有当不是滑动操作时才触发
+                    if (!isSwiping) {
+                        // 如果有操作按钮显示，隐藏它们
+                        if (card.style.transform && card.style.transform !== 'translateX(0px)') {
+                            card.style.transition = 'transform 0.3s ease';
+                            card.style.transform = 'translateX(0)';
+                        }
+                    }
+                });
+                
+                // 鼠标事件支持（桌面端）
+                card.addEventListener('mousedown', (e) => {
+                    startX = e.clientX;
+                    currentX = startX;
+                    isSwiping = false;
+                    actionsWidth = calculateActionsWidth();
+                    card.classList.add('swiping');
+                });
+                
+                card.addEventListener('mousemove', (e) => {
+                    if (!startX) return;
+                    
+                    currentX = e.clientX;
+                    const diffX = startX - currentX;
+                    
+                    if (Math.abs(diffX) > 10) {
+                        isSwiping = true;
+                    }
+                    
+                    if (isSwiping) {
+                        e.preventDefault();
+                        
+                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+                        
+                        if (diffX < 0) {
+                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+                        }
+                        
+                        card.style.transform = `translateX(${-translateX}px)`;
+                    }
+                });
+                
+                card.addEventListener('mouseup', () => {
+                    card.classList.remove('swiping');
+                    
+                    if (!isSwiping) {
+                        card.style.transform = 'translateX(0)';
+                        card.style.transition = 'transform 0.3s ease';
+                        return;
+                    }
+                    
+                    const diffX = startX - currentX;
+                    const threshold = actionsWidth * 0.3;
+                    
+                    card.style.transition = 'transform 0.3s ease';
+                    
+                    if (diffX > threshold) {
+                        card.style.transform = `translateX(-${actionsWidth}px)`;
+                    } else {
+                        card.style.transform = 'translateX(0)';
+                    }
+                    
+                    startX = 0;
+                    currentX = 0;
+                    isSwiping = false;
+                });
+                
+                // 鼠标离开时结束拖动
+                card.addEventListener('mouseleave', () => {
+                    if (isSwiping) {
+                        card.classList.remove('swiping');
+                        
+                        const diffX = startX - currentX;
+                        const threshold = actionsWidth * 0.3;
+                        
+                        card.style.transition = 'transform 0.3s ease';
+                        
+                        if (diffX > threshold) {
+                            card.style.transform = `translateX(-${actionsWidth}px)`;
+                        } else {
+                            card.style.transform = 'translateX(0)';
+                        }
+                        
+                        startX = 0;
+                        currentX = 0;
+                        isSwiping = false;
+                    }
+                });
             }
             
             showPage(pageName) {
@@ -1197,6 +1639,33 @@
                 this.recordDialog.classList.remove('active');
             }
             
+            showEditDialog(record) {
+                this.currentRecord = record;
+                
+                // 设置对话框值
+                this.editMoodSlider.value = record.moodLevel;
+                this.editFeelingInput.value = record.feeling;
+                this.updateEditMoodPreview(record.moodLevel);
+                
+                // 显示对话框
+                this.editDialog.classList.add('active');
+            }
+            
+            hideEditDialog() {
+                this.editDialog.classList.remove('active');
+                this.currentRecord = null;
+            }
+            
+            showConfirmDialog(record) {
+                this.currentRecord = record;
+                this.confirmDialog.classList.add('active');
+            }
+            
+            hideConfirmDialog() {
+                this.confirmDialog.classList.remove('active');
+                this.currentRecord = null;
+            }
+            
             updateMoodPreview(level) {
                 const moodLevel = parseInt(level);
                 const moodColor = this.dataManager.getMoodColor(moodLevel);
@@ -1210,6 +1679,19 @@
                 this.moodLevelName.textContent = moodName;
             }
             
+            updateEditMoodPreview(level) {
+                const moodLevel = parseInt(level);
+                const moodColor = this.dataManager.getMoodColor(moodLevel);
+                const moodName = this.dataManager.getMoodName(moodLevel);
+                
+                // 更新颜色预览
+                this.editColorPreview.style.backgroundColor = `rgb(${moodColor[0]}, ${moodColor[1]}, ${moodColor[2]})`;
+                
+                // 更新心情等级文本
+                this.editMoodLevelText.textContent = moodName;
+                this.editMoodLevelName.textContent = moodName;
+            }
+            
             saveRecord() {
                 const moodLevel = parseInt(this.moodSlider.value);
                 const feeling = this.feelingInput.value.trim();
@@ -1220,7 +1702,7 @@
                 }
                 
                 // 保存记录
-                const dateKey = this.dataManager.addRecord(moodLevel, feeling);
+                const { dateKey } = this.dataManager.addRecord(moodLevel, feeling);
                 
                 // 关闭对话框
                 this.hideRecordDialog();
@@ -1237,6 +1719,67 @@
                 
                 // 显示成功消息
                 this.showMessage('心情记录已保存！');
+            }
+            
+            saveEditedRecord() {
+                if (!this.currentRecord) return;
+                
+                const moodLevel = parseInt(this.editMoodSlider.value);
+                const feeling = this.editFeelingInput.value.trim();
+                
+                if (feeling === '') {
+                    alert('请输入您的感受');
+                    return;
+                }
+                
+                // 更新记录
+                const success = this.dataManager.updateRecord(
+                    this.selectedDate,
+                    this.currentRecord.id,
+                    moodLevel,
+                    feeling
+                );
+                
+                if (success) {
+                    // 关闭对话框
+                    this.hideEditDialog();
+                    
+                    // 更新界面
+                    this.updateCalendar();
+                    this.updateStats();
+                    
+                    // 重新加载详情页面
+                    this.showDateDetail(this.selectedDate);
+                    
+                    // 显示成功消息
+                    this.showMessage('记录已更新！');
+                } else {
+                    this.showMessage('更新记录失败！');
+                }
+            }
+            
+            deleteRecord() {
+                if (!this.currentRecord) return;
+                
+                // 删除记录
+                const success = this.dataManager.deleteRecord(this.selectedDate, this.currentRecord.id);
+                
+                if (success) {
+                    // 关闭对话框
+                    this.hideConfirmDialog();
+                    
+                    // 更新界面
+                    this.updateCalendar();
+                    this.updateStats();
+                    
+                    // 重新加载详情页面
+                    this.showDateDetail(this.selectedDate);
+                    
+                    // 显示成功消息
+                    this.showMessage('记录已删除！');
+                } else {
+                    this.showMessage('删除记录失败！');
+                }
             }
             
             showMessage(text) {
