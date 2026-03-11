@@ -37,6 +37,7 @@
             max-width: 100%;
             height: 100vh;
             height: 100dvh;
+            touch-action: pan-y;
         }
         
         .app-container {
@@ -50,6 +51,7 @@
             background-color: var(--card-bg);
             box-shadow: var(--shadow);
             overflow: hidden;
+            position: relative;
         }
         
         /* 标题栏 */
@@ -75,6 +77,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            position: relative;
         }
         
         /* 页面容器 */
@@ -82,11 +85,42 @@
             flex: 1;
             overflow: hidden;
             display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--card-bg);
+            transform: translateX(0);
+            transition: transform 0.3s ease;
         }
         
         .page-container.active {
             display: flex;
             flex-direction: column;
+            transform: translateX(0);
+        }
+        
+        .page-container.sliding-out {
+            transform: translateX(-100%);
+        }
+        
+        /* 安卓边缘滑动指示器 */
+        .edge-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+            background: linear-gradient(to right, rgba(76, 175, 80, 0.8), rgba(76, 175, 80, 0.2));
+            z-index: 5;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        
+        .edge-indicator.active {
+            opacity: 1;
         }
         
         /* 按钮样式 */
@@ -140,10 +174,11 @@
         /* 日历页面 */
         .calendar-header {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             padding: 15px 20px;
             border-bottom: 1px solid var(--border-color);
+            position: relative;
         }
         
         .month-nav {
@@ -155,6 +190,17 @@
         .month-title {
             font-size: 1.3rem;
             font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+        
+        .month-title.slide-left {
+            transform: translateX(-20px);
+            opacity: 0.5;
+        }
+        
+        .month-title.slide-right {
+            transform: translateX(20px);
+            opacity: 0.5;
         }
         
         .record-btn-container {
@@ -283,7 +329,7 @@
             padding: 20px;
         }
         
-        /* 记录卡片容器 - 支持滑动操作 */
+        /* 记录卡片容器 */
         .record-card-container {
             position: relative;
             margin-bottom: 15px;
@@ -300,44 +346,6 @@
             padding: 20px;
             transition: transform 0.3s ease;
             border-radius: 12px;
-        }
-        
-        .record-card.swiping {
-            transition: none;
-        }
-        
-        .record-actions {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            z-index: 1;
-        }
-        
-        .record-action {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            padding: 0 30px;
-            min-width: 100px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .record-action:hover, .record-action:active {
-            filter: brightness(0.9);
-        }
-        
-        .record-action.edit {
-            background-color: var(--edit-color);
-        }
-        
-        .record-action.delete {
-            background-color: var(--delete-color);
         }
         
         .record-header {
@@ -378,6 +386,39 @@
             padding: 40px 20px;
             color: var(--text-light);
             font-size: 1.1rem;
+        }
+        
+        /* 长按菜单样式 */
+        .longpress-menu {
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 100;
+            min-width: 120px;
+            overflow: hidden;
+        }
+        
+        .longpress-menu button {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            background: var(--edit-color);
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        
+        .longpress-menu button:hover {
+            filter: brightness(0.9);
+        }
+        
+        .longpress-menu button.delete {
+            background: var(--delete-color);
+            border-top: 1px solid rgba(255,255,255,0.2);
         }
         
         /* 记录对话框 */
@@ -520,6 +561,51 @@
             justify-content: space-between;
         }
         
+        /* 滑动提示 */
+        .swipe-hint {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-color);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 1.5rem;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        .swipe-hint.left {
+            left: 10px;
+        }
+        
+        .swipe-hint.right {
+            right: 10px;
+        }
+        
+        .swipe-hint.show {
+            opacity: 0.7;
+        }
+        
+        /* 滑动边界提示 */
+        .edge-limit {
+            position: absolute;
+            top: 0;
+            width: 10px;
+            height: 100%;
+            background-color: rgba(255, 0, 0, 0.1);
+            z-index: 1;
+            pointer-events: none;
+            display: none;
+        }
+        
+        .edge-limit.left {
+            left: 0;
+        }
+        
+        .edge-limit.right {
+            right: 0;
+        }
+        
         /* 响应式调整 */
         @media (max-width: 480px) {
             .app-container {
@@ -541,11 +627,6 @@
             .record-card {
                 padding: 15px;
             }
-            
-            .record-action {
-                padding: 0 20px;
-                min-width: 80px;
-            }
         }
         
         /* 动画 */
@@ -556,6 +637,24 @@
         
         .fade-in {
             animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .slide-in-left {
+            animation: slideInLeft 0.3s ease-out;
+        }
+        
+        .slide-in-right {
+            animation: slideInRight 0.3s ease-out;
         }
         
         /* 确认对话框 */
@@ -594,10 +693,58 @@
         .btn-danger:hover, .btn-danger:active {
             background-color: #d32f2f;
         }
+        
+        /* 滑动返回提示 */
+        .swipe-back-hint {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+        
+        .swipe-back-hint.show {
+            opacity: 1;
+        }
+        
+        .swipe-back-arrow {
+            display: inline-block;
+            margin-right: 5px;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
+        <!-- 安卓边缘滑动指示器 -->
+        <div class="edge-indicator"></div>
+        
+        <!-- 滑动返回提示 -->
+        <div class="swipe-back-hint" id="swipe-back-hint">
+            <span class="swipe-back-arrow">←</span> 滑动返回
+        </div>
+        
+        <!-- 滑动翻页提示 -->
+        <div class="swipe-hint left" id="swipe-left-hint">
+            <i class="fas fa-chevron-left"></i>
+        </div>
+        <div class="swipe-hint right" id="swipe-right-hint">
+            <i class="fas fa-chevron-right"></i>
+        </div>
+        
+        <!-- 滑动边界提示 -->
+        <div class="edge-limit left" id="left-edge-limit"></div>
+        <div class="edge-limit right" id="right-edge-limit"></div>
+        
         <!-- 标题栏 -->
         <header class="app-header">
             <h1 class="app-title">颜心</h1>
@@ -608,15 +755,7 @@
             <!-- 日历页面 -->
             <div id="calendar-page" class="page-container active">
                 <div class="calendar-header">
-                    <div class="month-nav">
-                        <button id="prev-month-btn" class="btn-icon">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <h2 id="month-title" class="month-title">2023年12月</h2>
-                        <button id="next-month-btn" class="btn-icon">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
-                    </div>
+                    <h2 id="month-title" class="month-title">2023年12月</h2>
                 </div>
                 
                 <div class="record-btn-container">
@@ -1119,6 +1258,21 @@
                 this.selectedDate = null;
                 this.currentRecord = null; // 当前正在编辑/删除的记录
                 
+                // 滑动翻页相关变量
+                this.swipe = {
+                    startX: 0,
+                    startY: 0,
+                    isSwiping: false,
+                    isHorizontal: false,
+                    swipeThreshold: 50, // 滑动触发翻页的阈值（像素）
+                    maxDrag: 100, // 最大拖动距离
+                    lastSwipeHintTime: 0 // 上次显示滑动提示的时间
+                };
+                
+                // 日历浏览范围
+                this.browseStart = null;
+                this.browseEnd = null;
+                
                 this.initElements();
                 this.bindEvents();
                 this.initApp();
@@ -1131,8 +1285,6 @@
                 
                 // 日历页面元素
                 this.monthTitle = document.getElementById('month-title');
-                this.prevMonthBtn = document.getElementById('prev-month-btn');
-                this.nextMonthBtn = document.getElementById('next-month-btn');
                 this.calendarDays = document.getElementById('calendar-days');
                 this.recordBtn = document.getElementById('record-btn');
                 this.weeklyAverage = document.getElementById('weekly-average');
@@ -1142,6 +1294,16 @@
                 this.backBtn = document.getElementById('back-btn');
                 this.detailDate = document.getElementById('detail-date');
                 this.recordsList = document.getElementById('records-list');
+                
+                // 安卓边缘滑动元素
+                this.edgeIndicator = document.querySelector('.edge-indicator');
+                this.swipeBackHint = document.getElementById('swipe-back-hint');
+                
+                // 滑动翻页提示元素
+                this.swipeLeftHint = document.getElementById('swipe-left-hint');
+                this.swipeRightHint = document.getElementById('swipe-right-hint');
+                this.leftEdgeLimit = document.getElementById('left-edge-limit');
+                this.rightEdgeLimit = document.getElementById('right-edge-limit');
                 
                 // 记录对话框元素
                 this.recordDialog = document.getElementById('record-dialog');
@@ -1174,10 +1336,6 @@
             }
             
             bindEvents() {
-                // 日历导航
-                this.prevMonthBtn.addEventListener('click', () => this.prevMonth());
-                this.nextMonthBtn.addEventListener('click', () => this.nextMonth());
-                
                 // 记录按钮
                 this.recordBtn.addEventListener('click', () => this.showRecordDialog());
                 
@@ -1218,9 +1376,467 @@
                         this.hideConfirmDialog();
                     }
                 });
+                
+                // 安卓边缘滑动事件监听
+                this.initEdgeSwipe();
+                
+                // 日历滑动翻页事件监听
+                this.initCalendarSwipe();
+            }
+            
+            calculateBrowseRange() {
+                const registerDateStr = this.dataManager.getRegisterDate();
+                const registerDate = this.dataManager.parseDate(registerDateStr);
+                
+                // 起始月份：注册月的前一个月
+                this.browseStart = new Date(registerDate.getFullYear(), registerDate.getMonth() - 1, 1);
+                
+                // 结束月份：当前月份的后一个月
+                const now = new Date();
+                this.browseEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                
+                // 更新边界提示显示
+                this.updateEdgeLimits();
+            }
+            
+            updateEdgeLimits() {
+                const currentMonthStart = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+                const prevMonthDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+                const nextMonthDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+                
+                // 显示或隐藏边界提示
+                if (prevMonthDate < this.browseStart) {
+                    this.leftEdgeLimit.style.display = 'block';
+                } else {
+                    this.leftEdgeLimit.style.display = 'none';
+                }
+                
+                if (nextMonthDate > this.browseEnd) {
+                    this.rightEdgeLimit.style.display = 'block';
+                } else {
+                    this.rightEdgeLimit.style.display = 'none';
+                }
+            }
+            
+            initCalendarSwipe() {
+                // 为日历页面添加触摸事件监听
+                this.calendarPage.addEventListener('touchstart', this.handleCalendarTouchStart.bind(this));
+                this.calendarPage.addEventListener('touchmove', this.handleCalendarTouchMove.bind(this));
+                this.calendarPage.addEventListener('touchend', this.handleCalendarTouchEnd.bind(this));
+                
+                // 为日历页面添加鼠标事件监听（桌面端测试）
+                this.calendarPage.addEventListener('mousedown', this.handleCalendarMouseDown.bind(this));
+                this.calendarPage.addEventListener('mousemove', this.handleCalendarMouseMove.bind(this));
+                this.calendarPage.addEventListener('mouseup', this.handleCalendarMouseUp.bind(this));
+                this.calendarPage.addEventListener('mouseleave', this.handleCalendarMouseLeave.bind(this));
+            }
+            
+            handleCalendarTouchStart(e) {
+                // 只有在日历页面激活时才处理滑动
+                if (!this.calendarPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                this.swipe.startX = touch.clientX;
+                this.swipe.startY = touch.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                
+                // 移除页面过渡效果以便平滑拖动
+                this.calendarPage.style.transition = '';
+            }
+            
+            handleCalendarTouchMove(e) {
+                if (this.swipe.startX === 0 || !this.calendarPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - this.swipe.startX;
+                const deltaY = Math.abs(touch.clientY - this.swipe.startY);
+                
+                // 检查是否为水平滑动（防止垂直滚动干扰）
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault(); // 防止页面滚动
+                    
+                    // 计算移动距离，限制在-maxDrag到maxDrag之间
+                    const dragX = Math.max(-this.swipe.maxDrag, Math.min(deltaX, this.swipe.maxDrag));
+                    
+                    // 应用滑动效果
+                    this.calendarPage.style.transform = `translateX(${dragX}px)`;
+                    
+                    // 更新月份标题动画
+                    if (dragX > 0) {
+                        this.monthTitle.classList.add('slide-right');
+                        this.monthTitle.classList.remove('slide-left');
+                    } else if (dragX < 0) {
+                        this.monthTitle.classList.add('slide-left');
+                        this.monthTitle.classList.remove('slide-right');
+                    }
+                    
+                    // 显示滑动提示
+                    if (Math.abs(dragX) > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeHint(deltaX > 0);
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
+            handleCalendarTouchEnd(e) {
+                if (!this.swipe.isSwiping || !this.swipe.isHorizontal) {
+                    this.resetCalendarSwipe();
+                    return;
+                }
+                
+                const touch = e.changedTouches[0];
+                const deltaX = touch.clientX - this.swipe.startX;
+                
+                // 添加过渡效果
+                this.calendarPage.style.transition = 'transform 0.3s ease';
+                this.monthTitle.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                
+                // 如果滑动距离超过阈值，触发翻页
+                if (Math.abs(deltaX) > this.swipe.swipeThreshold) {
+                    if (deltaX > 0) {
+                        // 向右滑动，查看上一月
+                        this.prevMonth();
+                    } else {
+                        // 向左滑动，查看下一月
+                        this.nextMonth();
+                    }
+                }
+                
+                // 重置位置
+                this.resetCalendarPosition();
+                this.resetCalendarSwipe();
+            }
+            
+            handleCalendarMouseDown(e) {
+                if (!this.calendarPage.classList.contains('active')) return;
+                
+                this.swipe.startX = e.clientX;
+                this.swipe.startY = e.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                this.calendarPage.style.transition = '';
+            }
+            
+            handleCalendarMouseMove(e) {
+                if (this.swipe.startX === 0 || !this.calendarPage.classList.contains('active')) return;
+                
+                const deltaX = e.clientX - this.swipe.startX;
+                const deltaY = Math.abs(e.clientY - this.swipe.startY);
+                
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault();
+                    
+                    const dragX = Math.max(-this.swipe.maxDrag, Math.min(deltaX, this.swipe.maxDrag));
+                    this.calendarPage.style.transform = `translateX(${dragX}px)`;
+                    
+                    if (dragX > 0) {
+                        this.monthTitle.classList.add('slide-right');
+                        this.monthTitle.classList.remove('slide-left');
+                    } else if (dragX < 0) {
+                        this.monthTitle.classList.add('slide-left');
+                        this.monthTitle.classList.remove('slide-right');
+                    }
+                    
+                    if (Math.abs(dragX) > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeHint(deltaX > 0);
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
+            handleCalendarMouseUp(e) {
+                if (!this.swipe.isSwiping || !this.swipe.isHorizontal) {
+                    this.resetCalendarSwipe();
+                    return;
+                }
+                
+                const deltaX = e.clientX - this.swipe.startX;
+                this.calendarPage.style.transition = 'transform 0.3s ease';
+                this.monthTitle.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                
+                if (Math.abs(deltaX) > this.swipe.swipeThreshold) {
+                    if (deltaX > 0) {
+                        this.prevMonth();
+                    } else {
+                        this.nextMonth();
+                    }
+                }
+                
+                this.resetCalendarPosition();
+                this.resetCalendarSwipe();
+            }
+            
+            handleCalendarMouseLeave(e) {
+                if (this.swipe.isSwiping && this.swipe.isHorizontal) {
+                    const deltaX = e.clientX - this.swipe.startX;
+                    this.calendarPage.style.transition = 'transform 0.3s ease';
+                    this.monthTitle.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                    
+                    if (Math.abs(deltaX) > this.swipe.swipeThreshold) {
+                        if (deltaX > 0) {
+                            this.prevMonth();
+                        } else {
+                            this.nextMonth();
+                        }
+                    }
+                    
+                    this.resetCalendarPosition();
+                    this.resetCalendarSwipe();
+                }
+            }
+            
+            resetCalendarSwipe() {
+                this.swipe.startX = 0;
+                this.swipe.startY = 0;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+            }
+            
+            resetCalendarPosition() {
+                this.calendarPage.style.transform = 'translateX(0)';
+                this.monthTitle.classList.remove('slide-left', 'slide-right');
+                
+                // 移除过渡效果，准备下一次滑动
+                setTimeout(() => {
+                    this.calendarPage.style.transition = '';
+                    this.monthTitle.style.transition = '';
+                }, 300);
+            }
+            
+            showSwipeHint(isRightSwipe) {
+                if (isRightSwipe) {
+                    this.swipeLeftHint.classList.add('show');
+                    setTimeout(() => {
+                        this.swipeLeftHint.classList.remove('show');
+                    }, 1000);
+                } else {
+                    this.swipeRightHint.classList.add('show');
+                    setTimeout(() => {
+                        this.swipeRightHint.classList.remove('show');
+                    }, 1000);
+                }
+            }
+            
+            initEdgeSwipe() {
+                // 为详情页面添加触摸事件监听
+                this.detailPage.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.detailPage.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.detailPage.addEventListener('touchend', this.handleTouchEnd.bind(this));
+                
+                // 为详情页面添加鼠标事件监听（桌面端测试）
+                this.detailPage.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.detailPage.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.detailPage.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.detailPage.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+            }
+            
+            handleTouchStart(e) {
+                // 只有在详情页面激活时才处理边缘滑动
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                this.swipe.startX = touch.clientX;
+                this.swipe.startY = touch.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                
+                // 检查是否从屏幕左侧边缘开始
+                if (this.swipe.startX <= 30) {
+                    this.edgeIndicator.classList.add('active');
+                }
+            }
+            
+            handleTouchMove(e) {
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - this.swipe.startX;
+                const deltaY = Math.abs(touch.clientY - this.swipe.startY);
+                
+                // 检查是否为水平滑动（防止垂直滚动干扰）
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault(); // 防止页面滚动
+                    
+                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
+                    const maxSwipe = window.innerWidth * 0.5;
+                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+                    
+                    // 应用滑动效果
+                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+                    
+                    // 更新边缘指示器透明度
+                    const opacity = Math.min(swipeDistance / 100, 0.8);
+                    this.edgeIndicator.style.opacity = opacity;
+                    
+                    // 显示滑动提示
+                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeBackHint();
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
+            handleTouchEnd(e) {
+                if (!this.swipe.isSwiping) {
+                    this.resetEdgeSwipe();
+                    return;
+                }
+                
+                const touch = e.changedTouches[0];
+                const deltaX = touch.clientX - this.swipe.startX;
+                
+                // 如果滑动距离超过阈值，触发返回
+                if (deltaX > 50) {
+                    this.performSwipeBack();
+                } else {
+                    // 否则返回原位置
+                    this.detailPage.style.transition = 'transform 0.3s ease';
+                    this.detailPage.style.transform = 'translateX(0)';
+                    
+                    // 移除过渡效果，准备下一次滑动
+                    setTimeout(() => {
+                        this.detailPage.style.transition = '';
+                    }, 300);
+                }
+                
+                this.resetEdgeSwipe();
+            }
+            
+            handleMouseDown(e) {
+                // 只有在详情页面激活时才处理边缘滑动
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                this.swipe.startX = e.clientX;
+                this.swipe.startY = e.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                
+                // 检查是否从屏幕左侧边缘开始
+                if (this.swipe.startX <= 30) {
+                    this.edgeIndicator.classList.add('active');
+                }
+            }
+            
+            handleMouseMove(e) {
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const deltaX = e.clientX - this.swipe.startX;
+                const deltaY = Math.abs(e.clientY - this.swipe.startY);
+                
+                // 检查是否为水平滑动
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault();
+                    
+                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
+                    const maxSwipe = window.innerWidth * 0.5;
+                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+                    
+                    // 应用滑动效果
+                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+                    
+                    // 更新边缘指示器透明度
+                    const opacity = Math.min(swipeDistance / 100, 0.8);
+                    this.edgeIndicator.style.opacity = opacity;
+                    
+                    // 显示滑动提示
+                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeBackHint();
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
+            handleMouseUp(e) {
+                if (!this.swipe.isSwiping) {
+                    this.resetEdgeSwipe();
+                    return;
+                }
+                
+                const deltaX = e.clientX - this.swipe.startX;
+                
+                // 如果滑动距离超过阈值，触发返回
+                if (deltaX > 50) {
+                    this.performSwipeBack();
+                } else {
+                    // 否则返回原位置
+                    this.detailPage.style.transition = 'transform 0.3s ease';
+                    this.detailPage.style.transform = 'translateX(0)';
+                    
+                    setTimeout(() => {
+                        this.detailPage.style.transition = '';
+                    }, 300);
+                }
+                
+                this.resetEdgeSwipe();
+            }
+            
+            handleMouseLeave(e) {
+                if (this.swipe.isSwiping) {
+                    const deltaX = e.clientX - this.swipe.startX;
+                    
+                    // 如果滑动距离超过阈值，触发返回
+                    if (deltaX > 50) {
+                        this.performSwipeBack();
+                    } else {
+                        // 否则返回原位置
+                        this.detailPage.style.transition = 'transform 0.3s ease';
+                        this.detailPage.style.transform = 'translateX(0)';
+                        
+                        setTimeout(() => {
+                            this.detailPage.style.transition = '';
+                        }, 300);
+                    }
+                    
+                    this.resetEdgeSwipe();
+                }
+            }
+            
+            showSwipeBackHint() {
+                this.swipeBackHint.classList.add('show');
+                setTimeout(() => {
+                    this.swipeBackHint.classList.remove('show');
+                }, 2000);
+            }
+            
+            resetEdgeSwipe() {
+                this.swipe.startX = 0;
+                this.swipe.startY = 0;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                this.edgeIndicator.classList.remove('active');
+                this.edgeIndicator.style.opacity = '0';
+            }
+            
+            performSwipeBack() {
+                // 添加滑动离开动画
+                this.detailPage.style.transition = 'transform 0.3s ease';
+                this.detailPage.style.transform = 'translateX(100%)';
+                
+                // 延迟执行返回操作，让动画完成
+                setTimeout(() => {
+                    this.showCalendar();
+                    // 重置位置
+                    this.detailPage.style.transform = 'translateX(0)';
+                    this.detailPage.style.transition = '';
+                }, 300);
+                
+                // 隐藏边缘指示器
+                this.edgeIndicator.classList.remove('active');
             }
             
             initApp() {
+                // 计算可浏览范围
+                this.calculateBrowseRange();
+                
                 // 更新注册日期
                 this.registerDate.textContent = `开始日期: ${this.dataManager.getRegisterDate()}`;
                 
@@ -1229,6 +1845,12 @@
                 
                 // 显示日历
                 this.updateCalendar();
+                
+                // 首次进入时显示滑动提示
+                setTimeout(() => {
+                    this.showSwipeHint(false);
+                    this.swipe.lastSwipeHintTime = Date.now();
+                }, 1000);
             }
             
             updateCalendar() {
@@ -1243,6 +1865,9 @@
                 
                 // 更新统计颜色
                 this.updateStatsColors(year, month);
+                
+                // 更新边界提示
+                this.updateEdgeLimits();
             }
             
             generateCalendar(year, month) {
@@ -1302,18 +1927,10 @@
                     this.calendarDays.appendChild(dayCell);
                 }
                 
-                // 禁用超出范围的导航按钮
-                const registerDate = this.dataManager.getRegisterDate();
-                const registerYear = parseInt(registerDate.split('-')[0]);
-                const registerMonth = parseInt(registerDate.split('-')[1]);
-                
-                this.prevMonthBtn.disabled = (year < registerYear) || (year === registerYear && month <= registerMonth);
-                
-                const now = new Date();
-                const currentYear = now.getFullYear();
-                const currentMonth = now.getMonth() + 1;
-                
-                this.nextMonthBtn.disabled = (year > currentYear) || (year === currentYear && month >= currentMonth);
+                // 添加日历切换动画
+                this.calendarDays.classList.remove('slide-in-left', 'slide-in-right');
+                void this.calendarDays.offsetWidth; // 触发重绘
+                this.calendarDays.classList.add('fade-in');
             }
             
             updateStatsColors(year, month) {
@@ -1346,13 +1963,33 @@
             }
             
             prevMonth() {
-                this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                const prevMonthDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() - 1, 1);
+                // 如果目标月份不在可浏览范围内，则不执行
+                if (prevMonthDate < this.browseStart) {
+                    // 给用户一个提示
+                    this.showMessage("已到达最早可浏览月份");
+                    return;
+                }
+                this.currentDate = prevMonthDate;
                 this.updateCalendar();
+                
+                // 添加动画效果
+                this.calendarDays.classList.remove('fade-in');
+                this.calendarDays.classList.add('slide-in-right');
             }
             
             nextMonth() {
-                this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                const nextMonthDate = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1);
+                if (nextMonthDate > this.browseEnd) {
+                    this.showMessage("已到达最晚可浏览月份");
+                    return;
+                }
+                this.currentDate = nextMonthDate;
                 this.updateCalendar();
+                
+                // 添加动画效果
+                this.calendarDays.classList.remove('fade-in');
+                this.calendarDays.classList.add('slide-in-left');
             }
             
             showDateDetail(dateKey) {
@@ -1382,6 +2019,14 @@
                 
                 // 切换到详情页面
                 this.showPage('detail');
+                
+                // 首次进入详情页面时显示滑动提示
+                if (Date.now() - this.swipe.lastSwipeHintTime > 10000) {
+                    setTimeout(() => {
+                        this.showSwipeBackHint();
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }, 500);
+                }
             }
             
             createRecordCard(record) {
@@ -1390,29 +2035,6 @@
                 container.dataset.recordId = record.id;
                 
                 const moodName = this.dataManager.getMoodName(record.moodLevel);
-                
-                // 创建操作按钮
-                const actions = document.createElement('div');
-                actions.className = 'record-actions';
-                
-                const editBtn = document.createElement('button');
-                editBtn.className = 'record-action edit';
-                editBtn.innerHTML = '<i class="fas fa-edit"></i> 编辑';
-                editBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.showEditDialog(record);
-                });
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'record-action delete';
-                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.showConfirmDialog(record);
-                });
-                
-                actions.appendChild(editBtn);
-                actions.appendChild(deleteBtn);
                 
                 // 创建记录卡片
                 const card = document.createElement('div');
@@ -1428,183 +2050,107 @@
                 `;
                 
                 container.appendChild(card);
-                container.appendChild(actions);
                 
-                // 添加触摸事件支持滑动操作
-                this.addSwipeEvents(container, card, actions);
+                // 添加长按事件
+                this.addLongPressEvent(card, record, container);
                 
                 return container;
             }
             
-            addSwipeEvents(container, card, actions) {
-                let startX = 0;
-                let currentX = 0;
-                let isSwiping = false;
-                let actionsWidth = 0;
+            addLongPressEvent(cardElement, recordData, containerElement) {
+                let longPressTimer;
+                const longPressDelay = 600; // 长按判定时间（毫秒）
                 
-                // 计算操作按钮的宽度
-                const calculateActionsWidth = () => {
-                    return actions.offsetWidth;
+                const showActionMenu = (x, y) => {
+                    // 如果已有菜单，先移除
+                    const existingMenu = containerElement.querySelector('.longpress-menu');
+                    if (existingMenu) existingMenu.remove();
+                    
+                    // 创建菜单
+                    const menu = document.createElement('div');
+                    menu.className = 'longpress-menu';
+                    
+                    // 计算菜单位置，确保不超出屏幕
+                    const rect = containerElement.getBoundingClientRect();
+                    let menuX = x;
+                    let menuY = y;
+                    
+                    // 如果菜单位置太靠右，向左偏移
+                    if (menuX > window.innerWidth - 120) {
+                        menuX = window.innerWidth - 120;
+                    }
+                    
+                    // 如果菜单位置太靠下，向上偏移
+                    if (menuY > window.innerHeight - 100) {
+                        menuY = window.innerHeight - 100;
+                    }
+                    
+                    menu.style.left = `${menuX}px`;
+                    menu.style.top = `${menuY}px`;
+                    
+                    const editOption = document.createElement('button');
+                    editOption.textContent = '编辑';
+                    editOption.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.showEditDialog(recordData);
+                        menu.remove();
+                    });
+                    
+                    const deleteOption = document.createElement('button');
+                    deleteOption.textContent = '删除';
+                    deleteOption.className = 'delete';
+                    deleteOption.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.showConfirmDialog(recordData);
+                        menu.remove();
+                    });
+                    
+                    menu.appendChild(editOption);
+                    menu.appendChild(deleteOption);
+                    containerElement.appendChild(menu);
+                    
+                    // 点击菜单外部关闭菜单
+                    const closeMenuHandler = (e) => {
+                        if (!menu.contains(e.target)) {
+                            menu.remove();
+                            document.removeEventListener('click', closeMenuHandler);
+                        }
+                    };
+                    // 使用setTimeout避免立即触发
+                    setTimeout(() => document.addEventListener('click', closeMenuHandler), 10);
                 };
                 
-                // 触摸开始
-                card.addEventListener('touchstart', (e) => {
-                    startX = e.touches[0].clientX;
-                    currentX = startX;
-                    isSwiping = false;
-                    actionsWidth = calculateActionsWidth();
-                    
-                    // 移除过渡效果以便平滑拖动
-                    card.classList.add('swiping');
-                });
+                const startPress = (clientX, clientY) => {
+                    longPressTimer = setTimeout(() => {
+                        showActionMenu(clientX, clientY);
+                    }, longPressDelay);
+                };
                 
-                // 触摸移动
-                card.addEventListener('touchmove', (e) => {
-                    if (!startX) return;
-                    
-                    currentX = e.touches[0].clientX;
-                    const diffX = startX - currentX;
-                    
-                    // 如果横向移动超过10px，认为是滑动
-                    if (Math.abs(diffX) > 10) {
-                        isSwiping = true;
-                    }
-                    
-                    if (isSwiping) {
-                        e.preventDefault(); // 防止页面滚动
-                        
-                        // 计算移动距离，限制在0到actionsWidth之间
-                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
-                        
-                        // 如果是向右滑动（显示操作按钮），限制移动距离
-                        if (diffX < 0) {
-                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
-                        }
-                        
-                        // 应用变换
-                        card.style.transform = `translateX(${-translateX}px)`;
+                const cancelPress = () => {
+                    clearTimeout(longPressTimer);
+                };
+                
+                // 触摸事件
+                cardElement.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // 防止长按时出现浏览器默认菜单
+                    startPress(e.touches[0].clientX, e.touches[0].clientY);
+                });
+                cardElement.addEventListener('touchend', cancelPress);
+                cardElement.addEventListener('touchmove', cancelPress); // 移动则取消长按
+                
+                // 鼠标事件
+                cardElement.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) { // 左键
+                        startPress(e.clientX, e.clientY);
                     }
                 });
+                cardElement.addEventListener('mouseup', cancelPress);
+                cardElement.addEventListener('mouseleave', cancelPress);
                 
-                // 触摸结束
-                card.addEventListener('touchend', () => {
-                    card.classList.remove('swiping');
-                    
-                    if (!isSwiping) {
-                        // 如果没有滑动，恢复位置
-                        card.style.transform = 'translateX(0)';
-                        card.style.transition = 'transform 0.3s ease';
-                        return;
-                    }
-                    
-                    const diffX = startX - currentX;
-                    const threshold = actionsWidth * 0.3; // 30%阈值
-                    
-                    // 添加过渡效果
-                    card.style.transition = 'transform 0.3s ease';
-                    
-                    if (diffX > threshold) {
-                        // 向左滑动超过阈值，显示操作按钮
-                        card.style.transform = `translateX(-${actionsWidth}px)`;
-                    } else {
-                        // 向右滑动或未达阈值，隐藏操作按钮
-                        card.style.transform = 'translateX(0)';
-                    }
-                    
-                    startX = 0;
-                    currentX = 0;
-                    isSwiping = false;
-                });
-                
-                // 点击卡片其他区域时隐藏操作按钮
-                card.addEventListener('click', (e) => {
-                    // 只有当不是滑动操作时才触发
-                    if (!isSwiping) {
-                        // 如果有操作按钮显示，隐藏它们
-                        if (card.style.transform && card.style.transform !== 'translateX(0px)') {
-                            card.style.transition = 'transform 0.3s ease';
-                            card.style.transform = 'translateX(0)';
-                        }
-                    }
-                });
-                
-                // 鼠标事件支持（桌面端）
-                card.addEventListener('mousedown', (e) => {
-                    startX = e.clientX;
-                    currentX = startX;
-                    isSwiping = false;
-                    actionsWidth = calculateActionsWidth();
-                    card.classList.add('swiping');
-                });
-                
-                card.addEventListener('mousemove', (e) => {
-                    if (!startX) return;
-                    
-                    currentX = e.clientX;
-                    const diffX = startX - currentX;
-                    
-                    if (Math.abs(diffX) > 10) {
-                        isSwiping = true;
-                    }
-                    
-                    if (isSwiping) {
-                        e.preventDefault();
-                        
-                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
-                        
-                        if (diffX < 0) {
-                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
-                        }
-                        
-                        card.style.transform = `translateX(${-translateX}px)`;
-                    }
-                });
-                
-                card.addEventListener('mouseup', () => {
-                    card.classList.remove('swiping');
-                    
-                    if (!isSwiping) {
-                        card.style.transform = 'translateX(0)';
-                        card.style.transition = 'transform 0.3s ease';
-                        return;
-                    }
-                    
-                    const diffX = startX - currentX;
-                    const threshold = actionsWidth * 0.3;
-                    
-                    card.style.transition = 'transform 0.3s ease';
-                    
-                    if (diffX > threshold) {
-                        card.style.transform = `translateX(-${actionsWidth}px)`;
-                    } else {
-                        card.style.transform = 'translateX(0)';
-                    }
-                    
-                    startX = 0;
-                    currentX = 0;
-                    isSwiping = false;
-                });
-                
-                // 鼠标离开时结束拖动
-                card.addEventListener('mouseleave', () => {
-                    if (isSwiping) {
-                        card.classList.remove('swiping');
-                        
-                        const diffX = startX - currentX;
-                        const threshold = actionsWidth * 0.3;
-                        
-                        card.style.transition = 'transform 0.3s ease';
-                        
-                        if (diffX > threshold) {
-                            card.style.transform = `translateX(-${actionsWidth}px)`;
-                        } else {
-                            card.style.transform = 'translateX(0)';
-                        }
-                        
-                        startX = 0;
-                        currentX = 0;
-                        isSwiping = false;
-                    }
+                // 右键菜单
+                cardElement.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showActionMenu(e.clientX, e.clientY);
                 });
             }
             
@@ -1616,6 +2162,7 @@
                 // 显示指定页面
                 if (pageName === 'calendar') {
                     this.calendarPage.classList.add('active');
+                    this.detailPage.style.transform = 'translateX(0)';
                 } else if (pageName === 'detail') {
                     this.detailPage.classList.add('active');
                 }
