@@ -387,40 +387,7 @@
             color: var(--text-light);
             font-size: 1.1rem;
         }
-        
- <!--        /* 长按菜单样式 */
-        .longpress-menu {
-            position: absolute;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            z-index: 100;
-            min-width: 120px;
-            overflow: hidden;
-        }
-        
-        .longpress-menu button {
-            display: block;
-            width: 100%;
-            padding: 12px 16px;
-            border: none;
-            background: var(--edit-color);
-            color: white;
-            text-align: left;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 0.95rem;
-        }
-        
-        .longpress-menu button:hover {
-            filter: brightness(0.9);
-        }
-        
-        .longpress-menu button.delete {
-            background: var(--delete-color);
-            border-top: 1px solid rgba(255,255,255,0.2);
-        } -->
-        
+              
         /* 记录对话框 */
         .dialog-overlay {
             position: fixed;
@@ -1323,6 +1290,10 @@
                     maxDrag: 100, // 最大拖动距离
                     lastSwipeHintTime: 0 // 上次显示滑动提示的时间
                 };
+				
+				// 卡片滑动状态标志
+				this.isCardSwiping = false; // 标记是否正在滑动卡片
+				this.cardSwipeThreshold = 20; // 卡片滑动触发阈值
                 
                 // 日历浏览范围
                 this.browseStart = null;
@@ -1691,53 +1662,78 @@
             }
             
             handleTouchStart(e) {
-                // 只有在详情页面激活时才处理边缘滑动
-                if (!this.detailPage.classList.contains('active')) return;
-                
-                const touch = e.touches[0];
-                this.swipe.startX = touch.clientX;
-                this.swipe.startY = touch.clientY;
-                this.swipe.isSwiping = false;
-                this.swipe.isHorizontal = false;
-                
-                // 检查是否从屏幕左侧边缘开始
-                if (this.swipe.startX <= 30) {
-                    this.edgeIndicator.classList.add('active');
-                }
-            }
+				// 只有在详情页面激活时才处理边缘滑动
+				if (!this.detailPage.classList.contains('active')) return;
+				
+				// 如果正在滑动卡片，则不处理边缘滑动
+				if (this.isCardSwiping) return;
+				
+				const touch = e.touches[0];
+				this.swipe.startX = touch.clientX;
+				this.swipe.startY = touch.clientY;
+				this.swipe.isSwiping = false;
+				this.swipe.isHorizontal = false;
+				
+				// 检查滑动起始点是否在记录卡片上
+				const recordCards = this.detailPage.querySelectorAll('.record-card-container');
+				let isOnCard = false;
+				
+				for (const card of recordCards) {
+					const rect = card.getBoundingClientRect();
+					if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+						touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+						isOnCard = true;
+						break;
+					}
+				}
+				
+				// 如果起始点在卡片上，则不处理边缘滑动
+				if (isOnCard) {
+					this.swipe.startX = 0;
+					return;
+				}
+				
+				// 检查是否从屏幕左侧边缘开始
+				if (this.swipe.startX <= 30) {
+					this.edgeIndicator.classList.add('active');
+				}
+			}
             
             handleTouchMove(e) {
-                if (!this.detailPage.classList.contains('active')) return;
-                
-                const touch = e.touches[0];
-                const deltaX = touch.clientX - this.swipe.startX;
-                const deltaY = Math.abs(touch.clientY - this.swipe.startY);
-                
-                // 检查是否为水平滑动（防止垂直滚动干扰）
-                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-                    this.swipe.isSwiping = true;
-                    this.swipe.isHorizontal = true;
-                    e.preventDefault(); // 防止页面滚动
-                    
-                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
-                    const maxSwipe = window.innerWidth * 0.5;
-                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
-                    
-                    // 应用滑动效果
-                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
-                    
-                    // 更新边缘指示器透明度
-                    const opacity = Math.min(swipeDistance / 100, 0.8);
-                    this.edgeIndicator.style.opacity = opacity;
-                    
-                    // 显示滑动提示
-                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
-                        this.showSwipeBackHint();
-                        this.swipe.lastSwipeHintTime = Date.now();
-                    }
-                }
-            }
-            
+				// 如果正在滑动卡片，则不处理边缘滑动
+				if (this.isCardSwiping) return;
+				
+				if (!this.detailPage.classList.contains('active')) return;
+				
+				const touch = e.touches[0];
+				const deltaX = touch.clientX - this.swipe.startX;
+				const deltaY = Math.abs(touch.clientY - this.swipe.startY);
+				
+				// 检查是否为水平滑动（防止垂直滚动干扰）
+				if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+					this.swipe.isSwiping = true;
+					this.swipe.isHorizontal = true;
+					e.preventDefault(); // 防止页面滚动
+					
+					// 计算滑动距离，限制在0到屏幕宽度的50%之间
+					const maxSwipe = window.innerWidth * 0.5;
+					const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+					
+					// 应用滑动效果
+					this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+					
+					// 更新边缘指示器透明度
+					const opacity = Math.min(swipeDistance / 100, 0.8);
+					this.edgeIndicator.style.opacity = opacity;
+					
+					// 显示滑动提示
+					if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+						this.showSwipeBackHint();
+						this.swipe.lastSwipeHintTime = Date.now();
+					}
+				}
+			}
+   
             handleTouchEnd(e) {
                 if (!this.swipe.isSwiping) {
                     this.resetEdgeSwipe();
@@ -1764,52 +1760,77 @@
                 this.resetEdgeSwipe();
             }
             
-            handleMouseDown(e) {
-                // 只有在详情页面激活时才处理边缘滑动
-                if (!this.detailPage.classList.contains('active')) return;
-                
-                this.swipe.startX = e.clientX;
-                this.swipe.startY = e.clientY;
-                this.swipe.isSwiping = false;
-                this.swipe.isHorizontal = false;
-                
-                // 检查是否从屏幕左侧边缘开始
-                if (this.swipe.startX <= 30) {
-                    this.edgeIndicator.classList.add('active');
-                }
-            }
-            
-            handleMouseMove(e) {
-                if (!this.detailPage.classList.contains('active')) return;
-                
-                const deltaX = e.clientX - this.swipe.startX;
-                const deltaY = Math.abs(e.clientY - this.swipe.startY);
-                
-                // 检查是否为水平滑动
-                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-                    this.swipe.isSwiping = true;
-                    this.swipe.isHorizontal = true;
-                    e.preventDefault();
-                    
-                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
-                    const maxSwipe = window.innerWidth * 0.5;
-                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
-                    
-                    // 应用滑动效果
-                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
-                    
-                    // 更新边缘指示器透明度
-                    const opacity = Math.min(swipeDistance / 100, 0.8);
-                    this.edgeIndicator.style.opacity = opacity;
-                    
-                    // 显示滑动提示
-                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
-                        this.showSwipeBackHint();
-                        this.swipe.lastSwipeHintTime = Date.now();
-                    }
-                }
-            }
-            
+			handleMouseDown(e) {
+				// 只有在详情页面激活时才处理边缘滑动
+				if (!this.detailPage.classList.contains('active')) return;
+				
+				// 如果正在滑动卡片，则不处理边缘滑动
+				if (this.isCardSwiping) return;
+				
+				this.swipe.startX = e.clientX;
+				this.swipe.startY = e.clientY;
+				this.swipe.isSwiping = false;
+				this.swipe.isHorizontal = false;
+				
+				// 检查滑动起始点是否在记录卡片上
+				const recordCards = this.detailPage.querySelectorAll('.record-card-container');
+				let isOnCard = false;
+				
+				for (const card of recordCards) {
+					const rect = card.getBoundingClientRect();
+					if (e.clientX >= rect.left && e.clientX <= rect.right &&
+						e.clientY >= rect.top && e.clientY <= rect.bottom) {
+						isOnCard = true;
+						break;
+					}
+				}
+				
+				// 如果起始点在卡片上，则不处理边缘滑动
+				if (isOnCard) {
+					this.swipe.startX = 0;
+					return;
+				}
+				
+				// 检查是否从屏幕左侧边缘开始
+				if (this.swipe.startX <= 30) {
+					this.edgeIndicator.classList.add('active');
+				}
+			}
+
+			handleMouseMove(e) {
+				// 如果正在滑动卡片，则不处理边缘滑动
+				if (this.isCardSwiping) return;
+				
+				if (!this.detailPage.classList.contains('active')) return;
+				
+				const deltaX = e.clientX - this.swipe.startX;
+				const deltaY = Math.abs(e.clientY - this.swipe.startY);
+				
+				// 检查是否为水平滑动
+				if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+					this.swipe.isSwiping = true;
+					this.swipe.isHorizontal = true;
+					e.preventDefault();
+					
+					// 计算滑动距离，限制在0到屏幕宽度的50%之间
+					const maxSwipe = window.innerWidth * 0.5;
+					const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+					
+					// 应用滑动效果
+					this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+					
+					// 更新边缘指示器透明度
+					const opacity = Math.min(swipeDistance / 100, 0.8);
+					this.edgeIndicator.style.opacity = opacity;
+					
+					// 显示滑动提示
+					if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+						this.showSwipeBackHint();
+						this.swipe.lastSwipeHintTime = Date.now();
+					}
+				}
+			}
+         
             handleMouseUp(e) {
                 if (!this.swipe.isSwiping) {
                     this.resetEdgeSwipe();
@@ -2084,8 +2105,6 @@
                 }
             }
             
-     
-
 			createRecordCard(record) {
 				const container = document.createElement('div');
 				container.className = 'record-card-container fade-in';
@@ -2137,11 +2156,13 @@
 				
 				return container;
 			}
-
+	
 			addSwipeEvents(container, card, actions) {
 				let startX = 0;
+				let startY = 0;
 				let currentX = 0;
 				let isSwiping = false;
+				let isHorizontal = false;
 				let actionsWidth = 0;
 				
 				// 计算操作按钮的宽度
@@ -2152,56 +2173,63 @@
 				// 触摸开始
 				card.addEventListener('touchstart', (e) => {
 					startX = e.touches[0].clientX;
+					startY = e.touches[0].clientY;
 					currentX = startX;
 					isSwiping = false;
+					isHorizontal = false;
 					actionsWidth = calculateActionsWidth();
+					this.isCardSwiping = false; // 重置卡片滑动状态
 					
 					// 移除过渡效果以便平滑拖动
 					card.style.transition = 'none';
-				});
+				}, { passive: true });
 				
 				// 触摸移动
 				card.addEventListener('touchmove', (e) => {
 					if (!startX) return;
 					
 					currentX = e.touches[0].clientX;
-					const diffX = startX - currentX;
+					const deltaX = startX - currentX;
+					const deltaY = Math.abs(e.touches[0].clientY - startY);
 					
-					// 如果横向移动超过10px，认为是滑动
-					if (Math.abs(diffX) > 10) {
+					// 检查是否为水平滑动
+					if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
 						isSwiping = true;
-					}
-					
-					if (isSwiping) {
+						isHorizontal = true;
+						this.isCardSwiping = true; // 标记正在滑动卡片
+						
+						// 阻止事件冒泡，避免触发页面边缘滑动
+						e.stopPropagation();
 						e.preventDefault(); // 防止页面滚动
 						
 						// 计算移动距离，限制在0到actionsWidth之间
-						let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+						let translateX = Math.max(0, Math.min(deltaX, actionsWidth));
 						
 						// 如果是向右滑动（显示操作按钮），限制移动距离
-						if (diffX < 0) {
-							translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+						if (deltaX < 0) {
+							translateX = Math.max(-actionsWidth, Math.min(deltaX, 0));
 						}
 						
 						// 应用变换
 						card.style.transform = `translateX(${-translateX}px)`;
 					}
-				});
+				}, { passive: false });
 				
 				// 触摸结束
-				card.addEventListener('touchend', () => {
+				card.addEventListener('touchend', (e) => {
 					card.style.transition = 'transform 0.3s ease';
 					
 					if (!isSwiping) {
 						// 如果没有滑动，恢复位置
 						card.style.transform = 'translateX(0)';
+						this.isCardSwiping = false;
 						return;
 					}
 					
-					const diffX = startX - currentX;
+					const deltaX = startX - currentX;
 					const threshold = actionsWidth * 0.3; // 30%阈值
 					
-					if (diffX > threshold) {
+					if (deltaX > threshold) {
 						// 向左滑动超过阈值，显示操作按钮
 						card.style.transform = `translateX(-${actionsWidth}px)`;
 					} else {
@@ -2209,10 +2237,17 @@
 						card.style.transform = 'translateX(0)';
 					}
 					
+					// 延迟重置卡片滑动状态，避免快速连续操作的问题
+					setTimeout(() => {
+						this.isCardSwiping = false;
+					}, 100);
+					
 					startX = 0;
+					startY = 0;
 					currentX = 0;
 					isSwiping = false;
-				});
+					isHorizontal = false;
+				}, { passive: true });
 				
 				// 点击卡片其他区域时隐藏操作按钮
 				card.addEventListener('click', (e) => {
@@ -2226,9 +2261,12 @@
 				// 鼠标事件支持（桌面端）
 				card.addEventListener('mousedown', (e) => {
 					startX = e.clientX;
+					startY = e.clientY;
 					currentX = startX;
 					isSwiping = false;
+					isHorizontal = false;
 					actionsWidth = calculateActionsWidth();
+					this.isCardSwiping = false;
 					card.style.transition = 'none';
 				});
 				
@@ -2236,19 +2274,21 @@
 					if (!startX) return;
 					
 					currentX = e.clientX;
-					const diffX = startX - currentX;
+					const deltaX = startX - currentX;
+					const deltaY = Math.abs(e.clientY - startY);
 					
-					if (Math.abs(diffX) > 10) {
+					if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
 						isSwiping = true;
-					}
-					
-					if (isSwiping) {
+						isHorizontal = true;
+						this.isCardSwiping = true;
+						
+						e.stopPropagation();
 						e.preventDefault();
 						
-						let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+						let translateX = Math.max(0, Math.min(deltaX, actionsWidth));
 						
-						if (diffX < 0) {
-							translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+						if (deltaX < 0) {
+							translateX = Math.max(-actionsWidth, Math.min(deltaX, 0));
 						}
 						
 						card.style.transform = `translateX(${-translateX}px)`;
@@ -2260,21 +2300,28 @@
 					
 					if (!isSwiping) {
 						card.style.transform = 'translateX(0)';
+						this.isCardSwiping = false;
 						return;
 					}
 					
-					const diffX = startX - currentX;
+					const deltaX = startX - currentX;
 					const threshold = actionsWidth * 0.3;
 					
-					if (diffX > threshold) {
+					if (deltaX > threshold) {
 						card.style.transform = `translateX(-${actionsWidth}px)`;
 					} else {
 						card.style.transform = 'translateX(0)';
 					}
 					
+					setTimeout(() => {
+						this.isCardSwiping = false;
+					}, 100);
+					
 					startX = 0;
+					startY = 0;
 					currentX = 0;
 					isSwiping = false;
+					isHorizontal = false;
 				});
 				
 				// 鼠标离开时结束拖动
@@ -2282,22 +2329,28 @@
 					if (isSwiping) {
 						card.style.transition = 'transform 0.3s ease';
 						
-						const diffX = startX - currentX;
+						const deltaX = startX - currentX;
 						const threshold = actionsWidth * 0.3;
 						
-						if (diffX > threshold) {
+						if (deltaX > threshold) {
 							card.style.transform = `translateX(-${actionsWidth}px)`;
 						} else {
 							card.style.transform = 'translateX(0)';
 						}
 						
+						setTimeout(() => {
+							this.isCardSwiping = false;
+						}, 100);
+						
 						startX = 0;
+						startY = 0;
 						currentX = 0;
 						isSwiping = false;
+						isHorizontal = false;
 					}
 				});
 			}
-   
+			
             showPage(pageName) {
                 // 隐藏所有页面
                 this.calendarPage.classList.remove('active');
