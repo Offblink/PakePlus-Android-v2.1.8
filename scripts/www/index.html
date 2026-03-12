@@ -1,11 +1,484 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>实时变声器 - 男声转女声</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .control-group h3 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group h3 i {
+            color: #764ba2;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .slider-label span {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .value-display {
+            background-color: #764ba2;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(to right, #667eea, #764ba2);
+            outline: none;
+            border-radius: 5px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #764ba2;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 150px;
+        }
+        
+        #startBtn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        #startBtn:hover:not(:disabled) {
+            background-color: #3d8b40;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        #stopBtn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        #stopBtn:hover:not(:disabled) {
+            background-color: #d32f2f;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.3);
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .status {
+            background-color: #e8f4fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #0556a6;
+            border-left: 5px solid #2196F3;
+        }
+        
+        .status.error {
+            background-color: #fdeaea;
+            color: #b71c1c;
+            border-left-color: #f44336;
+        }
+        
+        .status.success {
+            background-color: #edf7ed;
+            color: #2e7d32;
+            border-left-color: #4CAF50;
+        }
+        
+        .info {
+            margin-top: 25px;
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+            line-height: 1.5;
+        }
+        
+        .icon {
+            font-size: 1.2rem;
+        }
+        
+        .warning {
+            background-color: #fff8e1;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-microphone-alt"></i> 实时变声器</h1>
+        <p class="subtitle">支持音高、音色调节</p>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h3><i class="fas fa-sliders-h"></i> 变声参数调节</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>音高调节</span>
+                        <div class="value-display" id="pitchValue">1.5</div>
+                    </div>
+                    <input type="range" id="pitchSlider" min="1.2" max="2.5" step="0.1" value="1.5">
+                    <div class="slider-label" style="margin-top: 5px;">
+                        <span style="font-size: 0.9rem; color: #888;">男声</span>
+                        <span style="font-size: 0.9rem; color: #888;">女声</span>
+                    </div>
+                </div>
+                
+                <div class="slider-container" style="margin-top: 20px;">
+                    <div class="slider-label">
+                        <span>共振峰偏移</span>
+                        <div class="value-display" id="formantValue">1.2</div>
+                    </div>
+                    <input type="range" id="formantSlider" min="0.8" max="1.8" step="0.1" value="1.2">
+                    <div class="slider-label" style="margin-top: 5px;">
+                        <span style="font-size: 0.9rem; color: #888;">低沉</span>
+                        <span style="font-size: 0.9rem; color: #888;">尖锐</span>
+                    </div>
+                </div>
+                
+                <div class="slider-container" style="margin-top: 20px;">
+                    <div class="slider-label">
+                        <span>音量调节</span>
+                        <div class="value-display" id="volumeValue">1.0</div>
+                    </div>
+                    <input type="range" id="volumeSlider" min="0.5" max="2.0" step="0.1" value="1.0">
+                    <div class="slider-label" style="margin-top: 5px;">
+                        <span style="font-size: 0.9rem; color: #888;">轻柔</span>
+                        <span style="font-size: 0.9rem; color: #888;">响亮</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="startBtn">
+                <i class="fas fa-play"></i> 开始变声
+            </button>
+            <button id="stopBtn" disabled>
+                <i class="fas fa-stop"></i> 停止
+            </button>
+        </div>
+        
+        <div class="status" id="status">
+            点击"开始变声"按钮，允许麦克风访问后即可使用
+        </div>
+        
+        <div class="warning">
+            <i class="fas fa-exclamation-triangle"></i> 提示：使用本工具时请佩戴耳机，以免产生回声和啸叫
+        </div>
+        
+        <div class="info">
+            <p><i class="fas fa-info-circle"></i> 本工具使用Web Audio API实时处理音频，所有音频数据均在本地处理，不会上传到任何服务器。</p>
+            <p style="margin-top: 5px;">兼容Chrome、Edge、Firefox等现代浏览器，首次使用需要授予麦克风访问权限。</p>
+        </div>
+    </div>
+    
+    <script>
+        // DOM元素
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
+        const pitchSlider = document.getElementById('pitchSlider');
+        const formantSlider = document.getElementById('formantSlider');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const pitchValue = document.getElementById('pitchValue');
+        const formantValue = document.getElementById('formantValue');
+        const volumeValue = document.getElementById('volumeValue');
+        
+        // 音频相关变量
+        let audioContext;
+        let source;
+        let pitchShiftNode;
+        let formantShiftNode;
+        let gainNode;
+        let mediaStream;
+        let isActive = false;
+        
+        // 初始化音频处理节点
+        function createAudioNodes(stream) {
+            if (audioContext) {
+                audioContext.close();
+            }
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            source = audioContext.createMediaStreamSource(stream);
+            
+            // 创建音高变换节点
+            pitchShiftNode = audioContext.createScriptProcessor(4096, 1, 1);
+            
+            // 创建共振峰偏移节点（模拟女声特质）
+            formantShiftNode = audioContext.createBiquadFilter();
+            formantShiftNode.type = 'peaking';
+            formantShiftNode.frequency.value = 1500;
+            formantShiftNode.Q.value = 0.5;
+            
+            // 创建音量控制节点
+            gainNode = audioContext.createGain();
+            
+            // 设置初始参数
+            updatePitchShift(pitchSlider.value);
+            updateFormantShift(formantSlider.value);
+            updateVolume(volumeSlider.value);
+            
+            // 连接节点
+            source.connect(pitchShiftNode);
+            pitchShiftNode.connect(formantShiftNode);
+            formantShiftNode.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // 设置音频处理函数
+            pitchShiftNode.onaudioprocess = function(audioProcessingEvent) {
+                const inputBuffer = audioProcessingEvent.inputBuffer;
+                const outputBuffer = audioProcessingEvent.outputBuffer;
+                
+                // 获取音高变换值
+                const pitchRatio = parseFloat(pitchSlider.value);
+                
+                for (let channel = 0; channel < outputBuffer.numberOfChannels; channel++) {
+                    const inputData = inputBuffer.getChannelData(channel);
+                    const outputData = outputBuffer.getChannelData(channel);
+                    const bufferLength = inputData.length;
+                    
+                    // 简单的音高变换算法（基于重采样）
+                    for (let i = 0; i < bufferLength; i++) {
+                        const sourceIndex = i * pitchRatio;
+                        
+                        if (sourceIndex >= bufferLength) {
+                            outputData[i] = 0;
+                        } else {
+                            const indexInt = Math.floor(sourceIndex);
+                            const frac = sourceIndex - indexInt;
+                            
+                            if (indexInt + 1 < bufferLength) {
+                                // 线性插值
+                                outputData[i] = inputData[indexInt] * (1 - frac) + inputData[indexInt + 1] * frac;
+                            } else {
+                                outputData[i] = inputData[indexInt];
+                            }
+                        }
+                    }
+                }
+            };
+        }
+        
+        // 更新音高变换参数
+        function updatePitchShift(value) {
+            pitchValue.textContent = value;
+            if (pitchShiftNode) {
+                // 音高变换在音频处理函数中实时处理
+            }
+        }
+        
+        // 更新共振峰偏移参数
+        function updateFormantShift(value) {
+            formantValue.textContent = value;
+            if (formantShiftNode) {
+                // 共振峰偏移通过滤波器实现
+                formantShiftNode.gain.value = (value - 1) * 20; // 转换为增益值
+            }
+        }
+        
+        // 更新音量
+        function updateVolume(value) {
+            volumeValue.textContent = value;
+            if (gainNode) {
+                gainNode.gain.value = parseFloat(value);
+            }
+        }
+        
+        // 开始音频处理
+        startBtn.onclick = async () => {
+            try {
+                // 获取麦克风权限
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                // 创建音频处理节点
+                createAudioNodes(mediaStream);
+                
+                // 更新状态
+                statusDiv.textContent = "✅ 变声器已启动，请对着麦克风说话";
+                statusDiv.className = "status success";
+                
+                // 更新按钮状态
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                isActive = true;
+                
+            } catch (err) {
+                statusDiv.textContent = "❌ 错误: " + err.message;
+                statusDiv.className = "status error";
+                console.error("音频访问错误:", err);
+            }
+        };
+        
+        // 停止音频处理
+        stopBtn.onclick = () => {
+            if (mediaStream) {
+                // 停止所有媒体轨道
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
+            
+            // 更新状态
+            statusDiv.textContent = "⏹️ 变声器已停止";
+            statusDiv.className = "status";
+            
+            // 更新按钮状态
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            isActive = false;
+        };
+        
+        // 滑块事件监听
+        pitchSlider.addEventListener('input', () => updatePitchShift(pitchSlider.value));
+        formantSlider.addEventListener('input', () => updateFormantShift(formantSlider.value));
+        volumeSlider.addEventListener('input', () => updateVolume(volumeSlider.value));
+        
+        // 页面关闭时停止音频
+        window.addEventListener('beforeunload', () => {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+        });
+        
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            // 空格键切换开始/停止
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (isActive) {
+                    stopBtn.click();
+                } else {
+                    startBtn.click();
+                }
+            }
+            
+            // ESC键停止
+            if (e.code === 'Escape' && isActive) {
+                stopBtn.click();
+            }
+        });
+    </script>
+</body>
 </html>
