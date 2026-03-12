@@ -388,7 +388,7 @@
             font-size: 1.1rem;
         }
         
-        /* 长按菜单样式 */
+ <!--        /* 长按菜单样式 */
         .longpress-menu {
             position: absolute;
             background: white;
@@ -419,7 +419,7 @@
         .longpress-menu button.delete {
             background: var(--delete-color);
             border-top: 1px solid rgba(255,255,255,0.2);
-        }
+        } -->
         
         /* 记录对话框 */
         .dialog-overlay {
@@ -721,6 +721,61 @@
             margin-right: 5px;
             font-size: 1rem;
         }
+		
+/* 记录卡片容器 - 支持滑动操作 */
+.record-card-container {
+    position: relative;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background-color: var(--card-bg);
+}
+
+.record-card {
+    position: relative;
+    z-index: 2;
+    background-color: var(--card-bg);
+    padding: 20px;
+    transition: transform 0.3s ease;
+    border-radius: 12px;
+}
+
+.record-actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    z-index: 1;
+}
+
+.record-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    padding: 0 20px;
+    min-width: 80px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.record-action:hover, .record-action:active {
+    filter: brightness(0.9);
+}
+
+.record-action.edit {
+    background-color: var(--edit-color);
+}
+
+.record-action.delete {
+    background-color: var(--delete-color);
+}
     </style>
 </head>
 <body>
@@ -2029,131 +2084,220 @@
                 }
             }
             
-            createRecordCard(record) {
-                const container = document.createElement('div');
-                container.className = 'record-card-container fade-in';
-                container.dataset.recordId = record.id;
-                
-                const moodName = this.dataManager.getMoodName(record.moodLevel);
-                
-                // 创建记录卡片
-                const card = document.createElement('div');
-                card.className = 'record-card';
-                
-                card.innerHTML = `
-                    <div class="record-header">
-                        <div class="record-time">${record.timestamp}</div>
-                        <div class="record-mood">${moodName}</div>
-                    </div>
-                    <div class="record-color" style="background-color: rgb(${record.color[0]}, ${record.color[1]}, ${record.color[2]})"></div>
-                    <div class="record-feeling">${record.feeling}</div>
-                `;
-                
-                container.appendChild(card);
-                
-                // 添加长按事件
-                this.addLongPressEvent(card, record, container);
-                
-                return container;
-            }
-            
-            addLongPressEvent(cardElement, recordData, containerElement) {
-                let longPressTimer;
-                const longPressDelay = 600; // 长按判定时间（毫秒）
-                
-                const showActionMenu = (x, y) => {
-                    // 如果已有菜单，先移除
-                    const existingMenu = containerElement.querySelector('.longpress-menu');
-                    if (existingMenu) existingMenu.remove();
-                    
-                    // 创建菜单
-                    const menu = document.createElement('div');
-                    menu.className = 'longpress-menu';
-                    
-                    // 计算菜单位置，确保不超出屏幕
-                    const rect = containerElement.getBoundingClientRect();
-                    let menuX = x;
-                    let menuY = y;
-                    
-                    // 如果菜单位置太靠右，向左偏移
-                    if (menuX > window.innerWidth - 120) {
-                        menuX = window.innerWidth - 120;
-                    }
-                    
-                    // 如果菜单位置太靠下，向上偏移
-                    if (menuY > window.innerHeight - 100) {
-                        menuY = window.innerHeight - 100;
-                    }
-                    
-                    menu.style.left = `${menuX}px`;
-                    menu.style.top = `${menuY}px`;
-                    
-                    const editOption = document.createElement('button');
-                    editOption.textContent = '编辑';
-                    editOption.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.showEditDialog(recordData);
-                        menu.remove();
-                    });
-                    
-                    const deleteOption = document.createElement('button');
-                    deleteOption.textContent = '删除';
-                    deleteOption.className = 'delete';
-                    deleteOption.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.showConfirmDialog(recordData);
-                        menu.remove();
-                    });
-                    
-                    menu.appendChild(editOption);
-                    menu.appendChild(deleteOption);
-                    containerElement.appendChild(menu);
-                    
-                    // 点击菜单外部关闭菜单
-                    const closeMenuHandler = (e) => {
-                        if (!menu.contains(e.target)) {
-                            menu.remove();
-                            document.removeEventListener('click', closeMenuHandler);
-                        }
-                    };
-                    // 使用setTimeout避免立即触发
-                    setTimeout(() => document.addEventListener('click', closeMenuHandler), 10);
-                };
-                
-                const startPress = (clientX, clientY) => {
-                    longPressTimer = setTimeout(() => {
-                        showActionMenu(clientX, clientY);
-                    }, longPressDelay);
-                };
-                
-                const cancelPress = () => {
-                    clearTimeout(longPressTimer);
-                };
-                
-                // 触摸事件
-                cardElement.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // 防止长按时出现浏览器默认菜单
-                    startPress(e.touches[0].clientX, e.touches[0].clientY);
-                });
-                cardElement.addEventListener('touchend', cancelPress);
-                cardElement.addEventListener('touchmove', cancelPress); // 移动则取消长按
-                
-                // 鼠标事件
-                cardElement.addEventListener('mousedown', (e) => {
-                    if (e.button === 0) { // 左键
-                        startPress(e.clientX, e.clientY);
-                    }
-                });
-                cardElement.addEventListener('mouseup', cancelPress);
-                cardElement.addEventListener('mouseleave', cancelPress);
-                
-                // 右键菜单
-                cardElement.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    showActionMenu(e.clientX, e.clientY);
-                });
-            }
-            
+     
+
+			createRecordCard(record) {
+				const container = document.createElement('div');
+				container.className = 'record-card-container fade-in';
+				container.dataset.recordId = record.id;
+				
+				const moodName = this.dataManager.getMoodName(record.moodLevel);
+				
+				// 创建操作按钮
+				const actions = document.createElement('div');
+				actions.className = 'record-actions';
+				
+				const editBtn = document.createElement('button');
+				editBtn.className = 'record-action edit';
+				editBtn.innerHTML = '<i class="fas fa-edit"></i> 编辑';
+				editBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					this.showEditDialog(record);
+				});
+				
+				const deleteBtn = document.createElement('button');
+				deleteBtn.className = 'record-action delete';
+				deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
+				deleteBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					this.showConfirmDialog(record);
+				});
+				
+				actions.appendChild(editBtn);
+				actions.appendChild(deleteBtn);
+				
+				// 创建记录卡片
+				const card = document.createElement('div');
+				card.className = 'record-card';
+				
+				card.innerHTML = `
+					<div class="record-header">
+						<div class="record-time">${record.timestamp}</div>
+						<div class="record-mood">${moodName}</div>
+					</div>
+					<div class="record-color" style="background-color: rgb(${record.color[0]}, ${record.color[1]}, ${record.color[2]})"></div>
+					<div class="record-feeling">${record.feeling}</div>
+				`;
+				
+				container.appendChild(card);
+				container.appendChild(actions);
+				
+				// 添加触摸事件支持滑动操作
+				this.addSwipeEvents(container, card, actions);
+				
+				return container;
+			}
+
+			addSwipeEvents(container, card, actions) {
+				let startX = 0;
+				let currentX = 0;
+				let isSwiping = false;
+				let actionsWidth = 0;
+				
+				// 计算操作按钮的宽度
+				const calculateActionsWidth = () => {
+					return actions.offsetWidth;
+				};
+				
+				// 触摸开始
+				card.addEventListener('touchstart', (e) => {
+					startX = e.touches[0].clientX;
+					currentX = startX;
+					isSwiping = false;
+					actionsWidth = calculateActionsWidth();
+					
+					// 移除过渡效果以便平滑拖动
+					card.style.transition = 'none';
+				});
+				
+				// 触摸移动
+				card.addEventListener('touchmove', (e) => {
+					if (!startX) return;
+					
+					currentX = e.touches[0].clientX;
+					const diffX = startX - currentX;
+					
+					// 如果横向移动超过10px，认为是滑动
+					if (Math.abs(diffX) > 10) {
+						isSwiping = true;
+					}
+					
+					if (isSwiping) {
+						e.preventDefault(); // 防止页面滚动
+						
+						// 计算移动距离，限制在0到actionsWidth之间
+						let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+						
+						// 如果是向右滑动（显示操作按钮），限制移动距离
+						if (diffX < 0) {
+							translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+						}
+						
+						// 应用变换
+						card.style.transform = `translateX(${-translateX}px)`;
+					}
+				});
+				
+				// 触摸结束
+				card.addEventListener('touchend', () => {
+					card.style.transition = 'transform 0.3s ease';
+					
+					if (!isSwiping) {
+						// 如果没有滑动，恢复位置
+						card.style.transform = 'translateX(0)';
+						return;
+					}
+					
+					const diffX = startX - currentX;
+					const threshold = actionsWidth * 0.3; // 30%阈值
+					
+					if (diffX > threshold) {
+						// 向左滑动超过阈值，显示操作按钮
+						card.style.transform = `translateX(-${actionsWidth}px)`;
+					} else {
+						// 向右滑动或未达阈值，隐藏操作按钮
+						card.style.transform = 'translateX(0)';
+					}
+					
+					startX = 0;
+					currentX = 0;
+					isSwiping = false;
+				});
+				
+				// 点击卡片其他区域时隐藏操作按钮
+				card.addEventListener('click', (e) => {
+					// 只有当不是滑动操作时才触发
+					if (!isSwiping && card.style.transform && card.style.transform !== 'translateX(0px)') {
+						card.style.transition = 'transform 0.3s ease';
+						card.style.transform = 'translateX(0)';
+					}
+				});
+				
+				// 鼠标事件支持（桌面端）
+				card.addEventListener('mousedown', (e) => {
+					startX = e.clientX;
+					currentX = startX;
+					isSwiping = false;
+					actionsWidth = calculateActionsWidth();
+					card.style.transition = 'none';
+				});
+				
+				card.addEventListener('mousemove', (e) => {
+					if (!startX) return;
+					
+					currentX = e.clientX;
+					const diffX = startX - currentX;
+					
+					if (Math.abs(diffX) > 10) {
+						isSwiping = true;
+					}
+					
+					if (isSwiping) {
+						e.preventDefault();
+						
+						let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+						
+						if (diffX < 0) {
+							translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+						}
+						
+						card.style.transform = `translateX(${-translateX}px)`;
+					}
+				});
+				
+				card.addEventListener('mouseup', () => {
+					card.style.transition = 'transform 0.3s ease';
+					
+					if (!isSwiping) {
+						card.style.transform = 'translateX(0)';
+						return;
+					}
+					
+					const diffX = startX - currentX;
+					const threshold = actionsWidth * 0.3;
+					
+					if (diffX > threshold) {
+						card.style.transform = `translateX(-${actionsWidth}px)`;
+					} else {
+						card.style.transform = 'translateX(0)';
+					}
+					
+					startX = 0;
+					currentX = 0;
+					isSwiping = false;
+				});
+				
+				// 鼠标离开时结束拖动
+				card.addEventListener('mouseleave', () => {
+					if (isSwiping) {
+						card.style.transition = 'transform 0.3s ease';
+						
+						const diffX = startX - currentX;
+						const threshold = actionsWidth * 0.3;
+						
+						if (diffX > threshold) {
+							card.style.transform = `translateX(-${actionsWidth}px)`;
+						} else {
+							card.style.transform = 'translateX(0)';
+						}
+						
+						startX = 0;
+						currentX = 0;
+						isSwiping = false;
+					}
+				});
+			}
+   
             showPage(pageName) {
                 // 隐藏所有页面
                 this.calendarPage.classList.remove('active');
