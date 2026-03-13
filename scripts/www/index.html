@@ -329,7 +329,7 @@
             padding: 20px;
         }
         
-        /* 记录卡片容器 */
+        /* 记录卡片容器 - 支持滑动操作 */
         .record-card-container {
             position: relative;
             margin-bottom: 15px;
@@ -346,6 +346,44 @@
             padding: 20px;
             transition: transform 0.3s ease;
             border-radius: 12px;
+        }
+        
+        .record-card.swiping {
+            transition: none;
+        }
+        
+        .record-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+        
+        .record-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            padding: 0 20px;
+            min-width: 80px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .record-action:hover, .record-action:active {
+            filter: brightness(0.9);
+        }
+        
+        .record-action.edit {
+            background-color: var(--edit-color);
+        }
+        
+        .record-action.delete {
+            background-color: var(--delete-color);
         }
         
         .record-header {
@@ -387,7 +425,7 @@
             color: var(--text-light);
             font-size: 1.1rem;
         }
-              
+        
         /* 记录对话框 */
         .dialog-overlay {
             position: fixed;
@@ -594,6 +632,11 @@
             .record-card {
                 padding: 15px;
             }
+            
+            .record-action {
+                padding: 0 20px;
+                min-width: 80px;
+            }
         }
         
         /* 动画 */
@@ -688,61 +731,26 @@
             margin-right: 5px;
             font-size: 1rem;
         }
-		
-/* 记录卡片容器 - 支持滑动操作 */
-.record-card-container {
-    position: relative;
-    margin-bottom: 15px;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    background-color: var(--card-bg);
-}
-
-.record-card {
-    position: relative;
-    z-index: 2;
-    background-color: var(--card-bg);
-    padding: 20px;
-    transition: transform 0.3s ease;
-    border-radius: 12px;
-}
-
-.record-actions {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    z-index: 1;
-}
-
-.record-action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    padding: 0 20px;
-    min-width: 80px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-    font-size: 0.9rem;
-}
-
-.record-action:hover, .record-action:active {
-    filter: brightness(0.9);
-}
-
-.record-action.edit {
-    background-color: var(--edit-color);
-}
-
-.record-action.delete {
-    background-color: var(--delete-color);
-}
+        
+        /* 自动保存提示 */
+        .auto-save-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(76, 175, 80, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 101;
+        }
+        
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -766,6 +774,11 @@
         <!-- 滑动边界提示 -->
         <div class="edge-limit left" id="left-edge-limit"></div>
         <div class="edge-limit right" id="right-edge-limit"></div>
+        
+        <!-- 自动保存提示 -->
+        <div class="auto-save-indicator" id="auto-save-indicator">
+            <i class="fas fa-save"></i> 已自动保存
+        </div>
         
         <!-- 标题栏 -->
         <header class="app-header">
@@ -1279,6 +1292,8 @@
                 this.currentDate = new Date();
                 this.selectedDate = null;
                 this.currentRecord = null; // 当前正在编辑/删除的记录
+                this.editDialogHasChanges = false; // 标记编辑对话框是否有未保存的更改
+                this.recordDialogHasChanges = false; // 标记记录对话框是否有未保存的更改
                 
                 // 滑动翻页相关变量
                 this.swipe = {
@@ -1290,10 +1305,6 @@
                     maxDrag: 100, // 最大拖动距离
                     lastSwipeHintTime: 0 // 上次显示滑动提示的时间
                 };
-				
-				// 卡片滑动状态标志
-				this.isCardSwiping = false; // 标记是否正在滑动卡片
-				this.cardSwipeThreshold = 20; // 卡片滑动触发阈值
                 
                 // 日历浏览范围
                 this.browseStart = null;
@@ -1330,6 +1341,9 @@
                 this.swipeRightHint = document.getElementById('swipe-right-hint');
                 this.leftEdgeLimit = document.getElementById('left-edge-limit');
                 this.rightEdgeLimit = document.getElementById('right-edge-limit');
+                
+                // 自动保存提示元素
+                this.autoSaveIndicator = document.getElementById('auto-save-indicator');
                 
                 // 记录对话框元素
                 this.recordDialog = document.getElementById('record-dialog');
@@ -1381,19 +1395,43 @@
                 this.confirmDeleteBtn.addEventListener('click', () => this.deleteRecord());
                 
                 // 心情滑块
-                this.moodSlider.addEventListener('input', (e) => this.updateMoodPreview(e.target.value));
-                this.editMoodSlider.addEventListener('input', (e) => this.updateEditMoodPreview(e.target.value));
+                this.moodSlider.addEventListener('input', (e) => {
+                    this.updateMoodPreview(e.target.value);
+                    this.recordDialogHasChanges = true;
+                });
+                this.editMoodSlider.addEventListener('input', (e) => {
+                    this.updateEditMoodPreview(e.target.value);
+                    this.editDialogHasChanges = true;
+                });
+                
+                // 感受输入框
+                this.feelingInput.addEventListener('input', () => {
+                    this.recordDialogHasChanges = true;
+                });
+                this.editFeelingInput.addEventListener('input', () => {
+                    this.editDialogHasChanges = true;
+                });
                 
                 // 点击对话框外部关闭
                 this.recordDialog.addEventListener('click', (e) => {
                     if (e.target === this.recordDialog) {
-                        this.hideRecordDialog();
+                        // 点击外部区域，如果有更改则自动保存
+                        if (this.recordDialogHasChanges) {
+                            this.autoSaveRecord();
+                        } else {
+                            this.hideRecordDialog();
+                        }
                     }
                 });
                 
                 this.editDialog.addEventListener('click', (e) => {
                     if (e.target === this.editDialog) {
-                        this.hideEditDialog();
+                        // 点击外部区域，如果有更改则自动保存
+                        if (this.editDialogHasChanges && this.currentRecord) {
+                            this.autoSaveEditedRecord();
+                        } else {
+                            this.hideEditDialog();
+                        }
                     }
                 });
                 
@@ -1662,78 +1700,53 @@
             }
             
             handleTouchStart(e) {
-				// 只有在详情页面激活时才处理边缘滑动
-				if (!this.detailPage.classList.contains('active')) return;
-				
-				// 如果正在滑动卡片，则不处理边缘滑动
-				if (this.isCardSwiping) return;
-				
-				const touch = e.touches[0];
-				this.swipe.startX = touch.clientX;
-				this.swipe.startY = touch.clientY;
-				this.swipe.isSwiping = false;
-				this.swipe.isHorizontal = false;
-				
-				// 检查滑动起始点是否在记录卡片上
-				const recordCards = this.detailPage.querySelectorAll('.record-card-container');
-				let isOnCard = false;
-				
-				for (const card of recordCards) {
-					const rect = card.getBoundingClientRect();
-					if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
-						touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-						isOnCard = true;
-						break;
-					}
-				}
-				
-				// 如果起始点在卡片上，则不处理边缘滑动
-				if (isOnCard) {
-					this.swipe.startX = 0;
-					return;
-				}
-				
-				// 检查是否从屏幕左侧边缘开始
-				if (this.swipe.startX <= 30) {
-					this.edgeIndicator.classList.add('active');
-				}
-			}
+                // 只有在详情页面激活时才处理边缘滑动
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                this.swipe.startX = touch.clientX;
+                this.swipe.startY = touch.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                
+                // 检查是否从屏幕左侧边缘开始
+                if (this.swipe.startX <= 30) {
+                    this.edgeIndicator.classList.add('active');
+                }
+            }
             
             handleTouchMove(e) {
-				// 如果正在滑动卡片，则不处理边缘滑动
-				if (this.isCardSwiping) return;
-				
-				if (!this.detailPage.classList.contains('active')) return;
-				
-				const touch = e.touches[0];
-				const deltaX = touch.clientX - this.swipe.startX;
-				const deltaY = Math.abs(touch.clientY - this.swipe.startY);
-				
-				// 检查是否为水平滑动（防止垂直滚动干扰）
-				if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-					this.swipe.isSwiping = true;
-					this.swipe.isHorizontal = true;
-					e.preventDefault(); // 防止页面滚动
-					
-					// 计算滑动距离，限制在0到屏幕宽度的50%之间
-					const maxSwipe = window.innerWidth * 0.5;
-					const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
-					
-					// 应用滑动效果
-					this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
-					
-					// 更新边缘指示器透明度
-					const opacity = Math.min(swipeDistance / 100, 0.8);
-					this.edgeIndicator.style.opacity = opacity;
-					
-					// 显示滑动提示
-					if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
-						this.showSwipeBackHint();
-						this.swipe.lastSwipeHintTime = Date.now();
-					}
-				}
-			}
-   
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - this.swipe.startX;
+                const deltaY = Math.abs(touch.clientY - this.swipe.startY);
+                
+                // 检查是否为水平滑动（防止垂直滚动干扰）
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault(); // 防止页面滚动
+                    
+                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
+                    const maxSwipe = window.innerWidth * 0.5;
+                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+                    
+                    // 应用滑动效果
+                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+                    
+                    // 更新边缘指示器透明度
+                    const opacity = Math.min(swipeDistance / 100, 0.8);
+                    this.edgeIndicator.style.opacity = opacity;
+                    
+                    // 显示滑动提示
+                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeBackHint();
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
             handleTouchEnd(e) {
                 if (!this.swipe.isSwiping) {
                     this.resetEdgeSwipe();
@@ -1760,77 +1773,52 @@
                 this.resetEdgeSwipe();
             }
             
-			handleMouseDown(e) {
-				// 只有在详情页面激活时才处理边缘滑动
-				if (!this.detailPage.classList.contains('active')) return;
-				
-				// 如果正在滑动卡片，则不处理边缘滑动
-				if (this.isCardSwiping) return;
-				
-				this.swipe.startX = e.clientX;
-				this.swipe.startY = e.clientY;
-				this.swipe.isSwiping = false;
-				this.swipe.isHorizontal = false;
-				
-				// 检查滑动起始点是否在记录卡片上
-				const recordCards = this.detailPage.querySelectorAll('.record-card-container');
-				let isOnCard = false;
-				
-				for (const card of recordCards) {
-					const rect = card.getBoundingClientRect();
-					if (e.clientX >= rect.left && e.clientX <= rect.right &&
-						e.clientY >= rect.top && e.clientY <= rect.bottom) {
-						isOnCard = true;
-						break;
-					}
-				}
-				
-				// 如果起始点在卡片上，则不处理边缘滑动
-				if (isOnCard) {
-					this.swipe.startX = 0;
-					return;
-				}
-				
-				// 检查是否从屏幕左侧边缘开始
-				if (this.swipe.startX <= 30) {
-					this.edgeIndicator.classList.add('active');
-				}
-			}
-
-			handleMouseMove(e) {
-				// 如果正在滑动卡片，则不处理边缘滑动
-				if (this.isCardSwiping) return;
-				
-				if (!this.detailPage.classList.contains('active')) return;
-				
-				const deltaX = e.clientX - this.swipe.startX;
-				const deltaY = Math.abs(e.clientY - this.swipe.startY);
-				
-				// 检查是否为水平滑动
-				if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-					this.swipe.isSwiping = true;
-					this.swipe.isHorizontal = true;
-					e.preventDefault();
-					
-					// 计算滑动距离，限制在0到屏幕宽度的50%之间
-					const maxSwipe = window.innerWidth * 0.5;
-					const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
-					
-					// 应用滑动效果
-					this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
-					
-					// 更新边缘指示器透明度
-					const opacity = Math.min(swipeDistance / 100, 0.8);
-					this.edgeIndicator.style.opacity = opacity;
-					
-					// 显示滑动提示
-					if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
-						this.showSwipeBackHint();
-						this.swipe.lastSwipeHintTime = Date.now();
-					}
-				}
-			}
-         
+            handleMouseDown(e) {
+                // 只有在详情页面激活时才处理边缘滑动
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                this.swipe.startX = e.clientX;
+                this.swipe.startY = e.clientY;
+                this.swipe.isSwiping = false;
+                this.swipe.isHorizontal = false;
+                
+                // 检查是否从屏幕左侧边缘开始
+                if (this.swipe.startX <= 30) {
+                    this.edgeIndicator.classList.add('active');
+                }
+            }
+            
+            handleMouseMove(e) {
+                if (!this.detailPage.classList.contains('active')) return;
+                
+                const deltaX = e.clientX - this.swipe.startX;
+                const deltaY = Math.abs(e.clientY - this.swipe.startY);
+                
+                // 检查是否为水平滑动
+                if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
+                    this.swipe.isSwiping = true;
+                    this.swipe.isHorizontal = true;
+                    e.preventDefault();
+                    
+                    // 计算滑动距离，限制在0到屏幕宽度的50%之间
+                    const maxSwipe = window.innerWidth * 0.5;
+                    const swipeDistance = Math.max(0, Math.min(deltaX, maxSwipe));
+                    
+                    // 应用滑动效果
+                    this.detailPage.style.transform = `translateX(${swipeDistance}px)`;
+                    
+                    // 更新边缘指示器透明度
+                    const opacity = Math.min(swipeDistance / 100, 0.8);
+                    this.edgeIndicator.style.opacity = opacity;
+                    
+                    // 显示滑动提示
+                    if (swipeDistance > 30 && Date.now() - this.swipe.lastSwipeHintTime > 5000) {
+                        this.showSwipeBackHint();
+                        this.swipe.lastSwipeHintTime = Date.now();
+                    }
+                }
+            }
+            
             handleMouseUp(e) {
                 if (!this.swipe.isSwiping) {
                     this.resetEdgeSwipe();
@@ -2105,252 +2093,218 @@
                 }
             }
             
-			createRecordCard(record) {
-				const container = document.createElement('div');
-				container.className = 'record-card-container fade-in';
-				container.dataset.recordId = record.id;
-				
-				const moodName = this.dataManager.getMoodName(record.moodLevel);
-				
-				// 创建操作按钮
-				const actions = document.createElement('div');
-				actions.className = 'record-actions';
-				
-				const editBtn = document.createElement('button');
-				editBtn.className = 'record-action edit';
-				editBtn.innerHTML = '<i class="fas fa-edit"></i> 编辑';
-				editBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					this.showEditDialog(record);
-				});
-				
-				const deleteBtn = document.createElement('button');
-				deleteBtn.className = 'record-action delete';
-				deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
-				deleteBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					this.showConfirmDialog(record);
-				});
-				
-				actions.appendChild(editBtn);
-				actions.appendChild(deleteBtn);
-				
-				// 创建记录卡片
-				const card = document.createElement('div');
-				card.className = 'record-card';
-				
-				card.innerHTML = `
-					<div class="record-header">
-						<div class="record-time">${record.timestamp}</div>
-						<div class="record-mood">${moodName}</div>
-					</div>
-					<div class="record-color" style="background-color: rgb(${record.color[0]}, ${record.color[1]}, ${record.color[2]})"></div>
-					<div class="record-feeling">${record.feeling}</div>
-				`;
-				
-				container.appendChild(card);
-				container.appendChild(actions);
-				
-				// 添加触摸事件支持滑动操作
-				this.addSwipeEvents(container, card, actions);
-				
-				return container;
-			}
-	
-			addSwipeEvents(container, card, actions) {
-				let startX = 0;
-				let startY = 0;
-				let currentX = 0;
-				let isSwiping = false;
-				let isHorizontal = false;
-				let actionsWidth = 0;
-				
-				// 计算操作按钮的宽度
-				const calculateActionsWidth = () => {
-					return actions.offsetWidth;
-				};
-				
-				// 触摸开始
-				card.addEventListener('touchstart', (e) => {
-					startX = e.touches[0].clientX;
-					startY = e.touches[0].clientY;
-					currentX = startX;
-					isSwiping = false;
-					isHorizontal = false;
-					actionsWidth = calculateActionsWidth();
-					this.isCardSwiping = false; // 重置卡片滑动状态
-					
-					// 移除过渡效果以便平滑拖动
-					card.style.transition = 'none';
-				}, { passive: true });
-				
-				// 触摸移动
-				card.addEventListener('touchmove', (e) => {
-					if (!startX) return;
-					
-					currentX = e.touches[0].clientX;
-					const deltaX = startX - currentX;
-					const deltaY = Math.abs(e.touches[0].clientY - startY);
-					
-					// 检查是否为水平滑动
-					if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-						isSwiping = true;
-						isHorizontal = true;
-						this.isCardSwiping = true; // 标记正在滑动卡片
-						
-						// 阻止事件冒泡，避免触发页面边缘滑动
-						e.stopPropagation();
-						e.preventDefault(); // 防止页面滚动
-						
-						// 计算移动距离，限制在0到actionsWidth之间
-						let translateX = Math.max(0, Math.min(deltaX, actionsWidth));
-						
-						// 如果是向右滑动（显示操作按钮），限制移动距离
-						if (deltaX < 0) {
-							translateX = Math.max(-actionsWidth, Math.min(deltaX, 0));
-						}
-						
-						// 应用变换
-						card.style.transform = `translateX(${-translateX}px)`;
-					}
-				}, { passive: false });
-				
-				// 触摸结束
-				card.addEventListener('touchend', (e) => {
-					card.style.transition = 'transform 0.3s ease';
-					
-					if (!isSwiping) {
-						// 如果没有滑动，恢复位置
-						card.style.transform = 'translateX(0)';
-						this.isCardSwiping = false;
-						return;
-					}
-					
-					const deltaX = startX - currentX;
-					const threshold = actionsWidth * 0.3; // 30%阈值
-					
-					if (deltaX > threshold) {
-						// 向左滑动超过阈值，显示操作按钮
-						card.style.transform = `translateX(-${actionsWidth}px)`;
-					} else {
-						// 向右滑动或未达阈值，隐藏操作按钮
-						card.style.transform = 'translateX(0)';
-					}
-					
-					// 延迟重置卡片滑动状态，避免快速连续操作的问题
-					setTimeout(() => {
-						this.isCardSwiping = false;
-					}, 100);
-					
-					startX = 0;
-					startY = 0;
-					currentX = 0;
-					isSwiping = false;
-					isHorizontal = false;
-				}, { passive: true });
-				
-				// 点击卡片其他区域时隐藏操作按钮
-				card.addEventListener('click', (e) => {
-					// 只有当不是滑动操作时才触发
-					if (!isSwiping && card.style.transform && card.style.transform !== 'translateX(0px)') {
-						card.style.transition = 'transform 0.3s ease';
-						card.style.transform = 'translateX(0)';
-					}
-				});
-				
-				// 鼠标事件支持（桌面端）
-				card.addEventListener('mousedown', (e) => {
-					startX = e.clientX;
-					startY = e.clientY;
-					currentX = startX;
-					isSwiping = false;
-					isHorizontal = false;
-					actionsWidth = calculateActionsWidth();
-					this.isCardSwiping = false;
-					card.style.transition = 'none';
-				});
-				
-				card.addEventListener('mousemove', (e) => {
-					if (!startX) return;
-					
-					currentX = e.clientX;
-					const deltaX = startX - currentX;
-					const deltaY = Math.abs(e.clientY - startY);
-					
-					if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > deltaY) {
-						isSwiping = true;
-						isHorizontal = true;
-						this.isCardSwiping = true;
-						
-						e.stopPropagation();
-						e.preventDefault();
-						
-						let translateX = Math.max(0, Math.min(deltaX, actionsWidth));
-						
-						if (deltaX < 0) {
-							translateX = Math.max(-actionsWidth, Math.min(deltaX, 0));
-						}
-						
-						card.style.transform = `translateX(${-translateX}px)`;
-					}
-				});
-				
-				card.addEventListener('mouseup', () => {
-					card.style.transition = 'transform 0.3s ease';
-					
-					if (!isSwiping) {
-						card.style.transform = 'translateX(0)';
-						this.isCardSwiping = false;
-						return;
-					}
-					
-					const deltaX = startX - currentX;
-					const threshold = actionsWidth * 0.3;
-					
-					if (deltaX > threshold) {
-						card.style.transform = `translateX(-${actionsWidth}px)`;
-					} else {
-						card.style.transform = 'translateX(0)';
-					}
-					
-					setTimeout(() => {
-						this.isCardSwiping = false;
-					}, 100);
-					
-					startX = 0;
-					startY = 0;
-					currentX = 0;
-					isSwiping = false;
-					isHorizontal = false;
-				});
-				
-				// 鼠标离开时结束拖动
-				card.addEventListener('mouseleave', () => {
-					if (isSwiping) {
-						card.style.transition = 'transform 0.3s ease';
-						
-						const deltaX = startX - currentX;
-						const threshold = actionsWidth * 0.3;
-						
-						if (deltaX > threshold) {
-							card.style.transform = `translateX(-${actionsWidth}px)`;
-						} else {
-							card.style.transform = 'translateX(0)';
-						}
-						
-						setTimeout(() => {
-							this.isCardSwiping = false;
-						}, 100);
-						
-						startX = 0;
-						startY = 0;
-						currentX = 0;
-						isSwiping = false;
-						isHorizontal = false;
-					}
-				});
-			}
-			
+            createRecordCard(record) {
+                const container = document.createElement('div');
+                container.className = 'record-card-container fade-in';
+                container.dataset.recordId = record.id;
+                
+                const moodName = this.dataManager.getMoodName(record.moodLevel);
+                
+                // 创建操作按钮
+                const actions = document.createElement('div');
+                actions.className = 'record-actions';
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'record-action edit';
+                editBtn.innerHTML = '<i class="fas fa-edit"></i> 编辑';
+                editBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showEditDialog(record);
+                });
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'record-action delete';
+                deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i> 删除';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showConfirmDialog(record);
+                });
+                
+                actions.appendChild(editBtn);
+                actions.appendChild(deleteBtn);
+                
+                // 创建记录卡片
+                const card = document.createElement('div');
+                card.className = 'record-card';
+                
+                card.innerHTML = `
+                    <div class="record-header">
+                        <div class="record-time">${record.timestamp}</div>
+                        <div class="record-mood">${moodName}</div>
+                    </div>
+                    <div class="record-color" style="background-color: rgb(${record.color[0]}, ${record.color[1]}, ${record.color[2]})"></div>
+                    <div class="record-feeling">${record.feeling}</div>
+                `;
+                
+                container.appendChild(card);
+                container.appendChild(actions);
+                
+                // 添加触摸事件支持滑动操作
+                this.addSwipeEvents(container, card, actions);
+                
+                return container;
+            }
+            
+            addSwipeEvents(container, card, actions) {
+                let startX = 0;
+                let currentX = 0;
+                let isSwiping = false;
+                let actionsWidth = 0;
+                
+                // 计算操作按钮的宽度
+                const calculateActionsWidth = () => {
+                    return actions.offsetWidth;
+                };
+                
+                // 触摸开始
+                card.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    currentX = startX;
+                    isSwiping = false;
+                    actionsWidth = calculateActionsWidth();
+                    
+                    // 移除过渡效果以便平滑拖动
+                    card.style.transition = 'none';
+                });
+                
+                // 触摸移动
+                card.addEventListener('touchmove', (e) => {
+                    if (!startX) return;
+                    
+                    currentX = e.touches[0].clientX;
+                    const diffX = startX - currentX;
+                    
+                    // 如果横向移动超过10px，认为是滑动
+                    if (Math.abs(diffX) > 10) {
+                        isSwiping = true;
+                    }
+                    
+                    if (isSwiping) {
+                        e.preventDefault(); // 防止页面滚动
+                        
+                        // 计算移动距离，限制在0到actionsWidth之间
+                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+                        
+                        // 如果是向右滑动（显示操作按钮），限制移动距离
+                        if (diffX < 0) {
+                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+                        }
+                        
+                        // 应用变换
+                        card.style.transform = `translateX(${-translateX}px)`;
+                    }
+                });
+                
+                // 触摸结束
+                card.addEventListener('touchend', () => {
+                    card.style.transition = 'transform 0.3s ease';
+                    
+                    if (!isSwiping) {
+                        // 如果没有滑动，恢复位置
+                        card.style.transform = 'translateX(0)';
+                        return;
+                    }
+                    
+                    const diffX = startX - currentX;
+                    const threshold = actionsWidth * 0.3; // 30%阈值
+                    
+                    if (diffX > threshold) {
+                        // 向左滑动超过阈值，显示操作按钮
+                        card.style.transform = `translateX(-${actionsWidth}px)`;
+                    } else {
+                        // 向右滑动或未达阈值，隐藏操作按钮
+                        card.style.transform = 'translateX(0)';
+                    }
+                    
+                    startX = 0;
+                    currentX = 0;
+                    isSwiping = false;
+                });
+                
+                // 点击卡片其他区域时隐藏操作按钮
+                card.addEventListener('click', (e) => {
+                    // 只有当不是滑动操作时才触发
+                    if (!isSwiping && card.style.transform && card.style.transform !== 'translateX(0px)') {
+                        card.style.transition = 'transform 0.3s ease';
+                        card.style.transform = 'translateX(0)';
+                    }
+                });
+                
+                // 鼠标事件支持（桌面端）
+                card.addEventListener('mousedown', (e) => {
+                    startX = e.clientX;
+                    currentX = startX;
+                    isSwiping = false;
+                    actionsWidth = calculateActionsWidth();
+                    card.style.transition = 'none';
+                });
+                
+                card.addEventListener('mousemove', (e) => {
+                    if (!startX) return;
+                    
+                    currentX = e.clientX;
+                    const diffX = startX - currentX;
+                    
+                    if (Math.abs(diffX) > 10) {
+                        isSwiping = true;
+                    }
+                    
+                    if (isSwiping) {
+                        e.preventDefault();
+                        
+                        let translateX = Math.max(0, Math.min(diffX, actionsWidth));
+                        
+                        if (diffX < 0) {
+                            translateX = Math.max(-actionsWidth, Math.min(diffX, 0));
+                        }
+                        
+                        card.style.transform = `translateX(${-translateX}px)`;
+                    }
+                });
+                
+                card.addEventListener('mouseup', () => {
+                    card.style.transition = 'transform 0.3s ease';
+                    
+                    if (!isSwiping) {
+                        card.style.transform = 'translateX(0)';
+                        return;
+                    }
+                    
+                    const diffX = startX - currentX;
+                    const threshold = actionsWidth * 0.3;
+                    
+                    if (diffX > threshold) {
+                        card.style.transform = `translateX(-${actionsWidth}px)`;
+                    } else {
+                        card.style.transform = 'translateX(0)';
+                    }
+                    
+                    startX = 0;
+                    currentX = 0;
+                    isSwiping = false;
+                });
+                
+                // 鼠标离开时结束拖动
+                card.addEventListener('mouseleave', () => {
+                    if (isSwiping) {
+                        card.style.transition = 'transform 0.3s ease';
+                        
+                        const diffX = startX - currentX;
+                        const threshold = actionsWidth * 0.3;
+                        
+                        if (diffX > threshold) {
+                            card.style.transform = `translateX(-${actionsWidth}px)`;
+                        } else {
+                            card.style.transform = 'translateX(0)';
+                        }
+                        
+                        startX = 0;
+                        currentX = 0;
+                        isSwiping = false;
+                    }
+                });
+            }
+            
             showPage(pageName) {
                 // 隐藏所有页面
                 this.calendarPage.classList.remove('active');
@@ -2374,6 +2328,7 @@
                 this.moodSlider.value = 3;
                 this.feelingInput.value = '';
                 this.updateMoodPreview(3);
+                this.recordDialogHasChanges = false;
                 
                 // 显示对话框
                 this.recordDialog.classList.add('active');
@@ -2381,6 +2336,7 @@
             
             hideRecordDialog() {
                 this.recordDialog.classList.remove('active');
+                this.recordDialogHasChanges = false;
             }
             
             showEditDialog(record) {
@@ -2390,6 +2346,7 @@
                 this.editMoodSlider.value = record.moodLevel;
                 this.editFeelingInput.value = record.feeling;
                 this.updateEditMoodPreview(record.moodLevel);
+                this.editDialogHasChanges = false;
                 
                 // 显示对话框
                 this.editDialog.classList.add('active');
@@ -2398,6 +2355,7 @@
             hideEditDialog() {
                 this.editDialog.classList.remove('active');
                 this.currentRecord = null;
+                this.editDialogHasChanges = false;
             }
             
             showConfirmDialog(record) {
@@ -2436,6 +2394,36 @@
                 this.editMoodLevelName.textContent = moodName;
             }
             
+            autoSaveRecord() {
+                const moodLevel = parseInt(this.moodSlider.value);
+                const feeling = this.feelingInput.value.trim();
+                
+                if (feeling === '') {
+                    // 如果感受为空，不自动保存
+                    this.hideRecordDialog();
+                    return;
+                }
+                
+                // 保存记录
+                const { dateKey } = this.dataManager.addRecord(moodLevel, feeling);
+                
+                // 关闭对话框
+                this.hideRecordDialog();
+                
+                // 更新界面
+                this.updateCalendar();
+                this.updateStats();
+                
+                // 如果当前查看的正是今天，更新详情页面
+                const todayKey = this.dataManager.getTodayKey();
+                if (this.selectedDate === todayKey || (this.selectedDate === null && dateKey === todayKey)) {
+                    this.showDateDetail(todayKey);
+                }
+                
+                // 显示自动保存消息
+                this.showAutoSaveMessage('心情记录已自动保存！');
+            }
+            
             saveRecord() {
                 const moodLevel = parseInt(this.moodSlider.value);
                 const feeling = this.feelingInput.value.trim();
@@ -2463,6 +2451,44 @@
                 
                 // 显示成功消息
                 this.showMessage('心情记录已保存！');
+            }
+            
+            autoSaveEditedRecord() {
+                if (!this.currentRecord) return;
+                
+                const moodLevel = parseInt(this.editMoodSlider.value);
+                const feeling = this.editFeelingInput.value.trim();
+                
+                if (feeling === '') {
+                    // 如果感受为空，不自动保存
+                    this.hideEditDialog();
+                    return;
+                }
+                
+                // 更新记录
+                const success = this.dataManager.updateRecord(
+                    this.selectedDate,
+                    this.currentRecord.id,
+                    moodLevel,
+                    feeling
+                );
+                
+                if (success) {
+                    // 关闭对话框
+                    this.hideEditDialog();
+                    
+                    // 更新界面
+                    this.updateCalendar();
+                    this.updateStats();
+                    
+                    // 重新加载详情页面
+                    this.showDateDetail(this.selectedDate);
+                    
+                    // 显示自动保存消息
+                    this.showAutoSaveMessage('记录已自动保存！');
+                } else {
+                    this.showMessage('自动保存记录失败！');
+                }
             }
             
             saveEditedRecord() {
@@ -2559,6 +2585,16 @@
                         }
                     }, 300);
                 }, 3000);
+            }
+            
+            showAutoSaveMessage(text) {
+                this.autoSaveIndicator.textContent = text;
+                this.autoSaveIndicator.classList.add('show');
+                
+                // 2秒后隐藏
+                setTimeout(() => {
+                    this.autoSaveIndicator.classList.remove('show');
+                }, 2000);
             }
         }
         
