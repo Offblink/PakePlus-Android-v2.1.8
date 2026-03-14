@@ -1,11 +1,596 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>手机振动与闪光控制</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px 15px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #00dbde, #fc00ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            color: #a0a0c0;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+        
+        .warning {
+            background-color: rgba(255, 100, 100, 0.2);
+            border-left: 4px solid #ff6464;
+            padding: 12px 15px;
+            border-radius: 0 8px 8px 0;
+            margin: 15px 0 25px;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+        
+        .warning i {
+            color: #ff6464;
+            margin-right: 8px;
+        }
+        
+        .control-panel {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .control-item {
+            margin-bottom: 35px;
+        }
+        
+        .control-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .vibration-icon {
+            background: linear-gradient(135deg, #00b4db, #0083b0);
+        }
+        
+        .flash-icon {
+            background: linear-gradient(135deg, #f46b45, #eea849);
+        }
+        
+        .control-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .control-subtitle {
+            font-size: 0.9rem;
+            color: #b0b0d0;
+            margin-top: 3px;
+        }
+        
+        .slider-container {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .slider-value {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .value {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #4cc9f0;
+        }
+        
+        .unit {
+            color: #b0b0d0;
+            font-size: 0.9rem;
+        }
+        
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .vibration-slider::-webkit-slider-thumb {
+            background: #00b4db;
+        }
+        
+        .flash-slider::-webkit-slider-thumb {
+            background: #f46b45;
+        }
+        
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #8888aa;
+        }
+        
+        .control-buttons {
+            display: flex;
+            width: 100%;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 18px 20px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        #startBtn {
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+            color: white;
+        }
+        
+        #stopBtn {
+            background: linear-gradient(135deg, #ff416c, #ff4b2b);
+            color: white;
+        }
+        
+        button:hover, button:active {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .preview-area {
+            width: 100%;
+            height: 150px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .flash-effect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .status {
+            font-size: 1.1rem;
+            text-align: center;
+            margin-top: 25px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .active {
+            background: rgba(0, 200, 100, 0.2);
+            color: #4cd964;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            font-size: 0.9rem;
+            color: #a0a0c0;
+            line-height: 1.5;
+            text-align: center;
+            max-width: 90%;
+        }
+        
+        footer {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: #666699;
+            text-align: center;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 400px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .control-panel {
+                padding: 20px 15px;
+            }
+            
+            .control-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-mobile-alt"></i> 振动与闪光控制</h1>
+            <p class="subtitle">通过滑块调整频率，实时体验效果</p>
+        </header>
+        
+        <div class="warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            注意：振动功能在部分iOS设备上可能受限。闪光效果可能不适合光敏性癫痫患者。
+        </div>
+        
+        <div class="control-panel">
+            <!-- 振动控制 -->
+            <div class="control-item">
+                <div class="control-header">
+                    <div class="icon vibration-icon">
+                        <i class="fas fa-vibrate"></i>
+                    </div>
+                    <div>
+                        <div class="control-title">振动频率控制</div>
+                        <div class="control-subtitle">调整手机振动频率 (Hz)</div>
+                    </div>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-value">
+                        <span>当前值: <span id="vibrationValue" class="value">5</span> <span class="unit">Hz</span></span>
+                        <span>强度: <span id="vibrationIntensity" class="value">中</span></span>
+                    </div>
+                    
+                    <input type="range" min="1" max="20" value="5" class="slider vibration-slider" id="vibrationSlider">
+                    
+                    <div class="slider-labels">
+                        <span>低频 (1Hz)</span>
+                        <span>中频 (10Hz)</span>
+                        <span>高频 (20Hz)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 闪光控制 -->
+            <div class="control-item">
+                <div class="control-header">
+                    <div class="icon flash-icon">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <div>
+                        <div class="control-title">闪光频率控制</div>
+                        <div class="control-subtitle">调整闪光频率 (Hz)</div>
+                    </div>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-value">
+                        <span>当前值: <span id="flashValue" class="value">2</span> <span class="unit">Hz</span></span>
+                        <span>强度: <span id="flashIntensity" class="value">低</span></span>
+                    </div>
+                    
+                    <input type="range" min="1" max="10" value="2" class="slider flash-slider" id="flashSlider">
+                    
+                    <div class="slider-labels">
+                        <span>慢闪 (1Hz)</span>
+                        <span>中闪 (5Hz)</span>
+                        <span>快闪 (10Hz)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 控制按钮 -->
+            <div class="control-buttons">
+                <button id="startBtn">
+                    <i class="fas fa-play"></i> 启动效果
+                </button>
+                <button id="stopBtn" disabled>
+                    <i class="fas fa-stop"></i> 停止效果
+                </button>
+            </div>
+        </div>
+        
+        <!-- 效果预览区域 -->
+        <div class="preview-area">
+            <div id="flashEffect" class="flash-effect"></div>
+            <div id="previewText">效果预览区域</div>
+        </div>
+        
+        <!-- 状态显示 -->
+        <div class="status" id="status">
+            <i class="fas fa-pause-circle"></i> 当前状态: 已停止
+        </div>
+        
+        <!-- 使用说明 -->
+        <div class="instructions">
+            <p><i class="fas fa-info-circle"></i> 使用说明：调整滑块设置频率，点击"启动效果"开始振动和闪光。建议在安全环境下使用，避免高频闪光。</p>
+        </div>
+        
+        <footer>
+            <p>专为移动端优化 | 使用Web Vibration API | 确保设备音量开启</p>
+        </footer>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const vibrationSlider = document.getElementById('vibrationSlider');
+        const flashSlider = document.getElementById('flashSlider');
+        const vibrationValue = document.getElementById('vibrationValue');
+        const flashValue = document.getElementById('flashValue');
+        const vibrationIntensity = document.getElementById('vibrationIntensity');
+        const flashIntensity = document.getElementById('flashIntensity');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+        const flashEffect = document.getElementById('flashEffect');
+        const previewText = document.getElementById('previewText');
+        
+        // 状态变量
+        let isActive = false;
+        let vibrationInterval;
+        let flashInterval;
+        let lastVibrationTime = 0;
+        
+        // 振动兼容性检查
+        const isVibrationSupported = 'vibrate' in navigator;
+        
+        if (!isVibrationSupported) {
+            document.querySelector('.warning').innerHTML = 
+                '<i class="fas fa-exclamation-triangle"></i> 您的设备或浏览器不支持振动API。闪光功能仍可正常使用。';
+        }
+        
+        // 更新振动值显示
+        vibrationSlider.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            vibrationValue.textContent = value;
+            
+            // 更新强度显示
+            if (value <= 5) {
+                vibrationIntensity.textContent = '低';
+                vibrationIntensity.style.color = '#4cd964';
+            } else if (value <= 12) {
+                vibrationIntensity.textContent = '中';
+                vibrationIntensity.style.color = '#ffcc00';
+            } else {
+                vibrationIntensity.textContent = '高';
+                vibrationIntensity.style.color = '#ff3b30';
+            }
+            
+            // 如果效果正在运行，立即更新频率
+            if (isActive) {
+                clearInterval(vibrationInterval);
+                startVibration(value);
+            }
+        });
+        
+        // 更新闪光值显示
+        flashSlider.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            flashValue.textContent = value;
+            
+            // 更新强度显示
+            if (value <= 3) {
+                flashIntensity.textContent = '低';
+                flashIntensity.style.color = '#4cd964';
+            } else if (value <= 6) {
+                flashIntensity.textContent = '中';
+                flashIntensity.style.color = '#ffcc00';
+            } else {
+                flashIntensity.textContent = '高';
+                flashIntensity.style.color = '#ff3b30';
+            }
+            
+            // 如果效果正在运行，立即更新频率
+            if (isActive) {
+                clearInterval(flashInterval);
+                startFlash(value);
+            }
+        });
+        
+        // 启动效果
+        startBtn.addEventListener('click', function() {
+            if (isActive) return;
+            
+            isActive = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            
+            status.innerHTML = '<i class="fas fa-play-circle"></i> 当前状态: 运行中';
+            status.classList.add('active');
+            
+            const vibrationFreq = parseInt(vibrationSlider.value);
+            const flashFreq = parseInt(flashSlider.value);
+            
+            // 开始振动效果
+            startVibration(vibrationFreq);
+            
+            // 开始闪光效果
+            startFlash(flashFreq);
+            
+            // 更新预览文本
+            previewText.innerHTML = `<i class="fas fa-running"></i> 振动: ${vibrationFreq}Hz | 闪光: ${flashFreq}Hz`;
+            previewText.style.fontWeight = 'bold';
+        });
+        
+        // 停止效果
+        stopBtn.addEventListener('click', function() {
+            if (!isActive) return;
+            
+            isActive = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            // 清除所有定时器
+            clearInterval(vibrationInterval);
+            clearInterval(flashInterval);
+            
+            // 停止振动
+            if (isVibrationSupported) {
+                navigator.vibrate(0);
+            }
+            
+            // 重置闪光效果
+            flashEffect.style.opacity = '0';
+            flashEffect.style.backgroundColor = '#ffffff';
+            
+            status.innerHTML = '<i class="fas fa-pause-circle"></i> 当前状态: 已停止';
+            status.classList.remove('active');
+            
+            previewText.innerHTML = '效果预览区域';
+            previewText.style.fontWeight = 'normal';
+        });
+        
+        // 启动振动函数
+        function startVibration(frequency) {
+            if (!isVibrationSupported) return;
+            
+            const interval = 1000 / frequency; // 转换为毫秒
+            
+            // 立即执行第一次振动
+            navigator.vibrate(interval / 2);
+            lastVibrationTime = Date.now();
+            
+            // 设置定时器持续振动
+            vibrationInterval = setInterval(() => {
+                navigator.vibrate(interval / 2);
+                lastVibrationTime = Date.now();
+            }, interval);
+        }
+        
+        // 启动闪光函数
+        function startFlash(frequency) {
+            const interval = 1000 / frequency; // 转换为毫秒
+            let isFlashOn = false;
+            
+            // 立即执行第一次闪光
+            flashEffect.style.backgroundColor = getFlashColor(frequency);
+            flashEffect.style.opacity = '0.7';
+            isFlashOn = true;
+            
+            // 设置定时器持续闪光
+            flashInterval = setInterval(() => {
+                if (isFlashOn) {
+                    flashEffect.style.opacity = '0';
+                } else {
+                    flashEffect.style.backgroundColor = getFlashColor(frequency);
+                    flashEffect.style.opacity = '0.7';
+                }
+                isFlashOn = !isFlashOn;
+            }, interval / 2);
+        }
+        
+        // 根据频率获取不同的闪光颜色
+        function getFlashColor(freq) {
+            if (freq <= 3) {
+                return 'rgba(255, 255, 255, 0.7)'; // 白色 - 低频
+            } else if (freq <= 6) {
+                return 'rgba(255, 200, 100, 0.7)'; // 黄色 - 中频
+            } else {
+                return 'rgba(255, 100, 100, 0.7)'; // 红色 - 高频
+            }
+        }
+        
+        // 页面卸载时停止所有效果
+        window.addEventListener('beforeunload', function() {
+            if (isVibrationSupported && isActive) {
+                navigator.vibrate(0);
+            }
+            clearInterval(vibrationInterval);
+            clearInterval(flashInterval);
+        });
+        
+        // 初始显示强度
+        vibrationSlider.dispatchEvent(new Event('input'));
+        flashSlider.dispatchEvent(new Event('input'));
+        
+        // 触摸设备优化
+        document.addEventListener('touchstart', function() {}, {passive: true});
+        
+        // 初始状态提示
+        if (!isVibrationSupported) {
+            previewText.innerHTML = '<i class="fas fa-info-circle"></i> 振动功能在此设备上不可用';
+        }
+    </script>
+</body>
 </html>
