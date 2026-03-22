@@ -1,11 +1,1852 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>去逛逛 - 探索无尽的街道</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            touch-action: none;
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            max-height: 700px;
+            aspect-ratio: 16/9;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: auto;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* 游戏UI */
+        .game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .game-ui > * {
+            pointer-events: auto;
+        }
+
+        /* 对话框 */
+        .dialog-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            width: 90%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        .dialog-container.active {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .dialog-header {
+            background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .npc-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .close-dialog {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .close-dialog:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .dialog-content {
+            padding: 20px;
+            color: #1f2937;
+            font-size: 1rem;
+            line-height: 1.5;
+            min-height: 80px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        /* 玩家选项容器 */
+        .player-options {
+            padding: 0 20px 20px 20px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .player-options.active {
+            display: flex;
+        }
+
+        .player-option {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 15px;
+            color: #374151;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .player-option:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
+            transform: translateY(-2px);
+        }
+
+        .player-option:active {
+            transform: translateY(0);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 20px;
+            background: #f3f4f6;
+            border-radius: 0 0 15px 15px;
+        }
+
+        .typing-indicator.active {
+            display: block;
+        }
+
+        .typing-dots {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #6366f1;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        /* 移动控制 - 左右对称布局 */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: none;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        /* 左侧摇杆区域 */
+        .joystick-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        /* 右侧对话按钮区域 */
+        .action-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .virtual-joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            position: relative;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .joystick-handle {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s;
+        }
+
+        .action-button {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .action-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+        }
+
+        /* 摇杆提示标签 */
+        .joystick-label {
+            color: white;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* 对话按钮提示标签 */
+        .action-label {
+            color: white;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* 提示信息 */
+        .hint-box {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            max-width: 280px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .hint-box p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+        }
+
+        .hint-box i {
+            color: #8b5cf6;
+        }
+
+        /* 音效控制 */
+        .sound-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .sound-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 1.3rem;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s;
+        }
+
+        .sound-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* 加载界面 */
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loader {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            margin-bottom: 30px;
+        }
+
+        .street-loader {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 40px;
+            background: repeating-linear-gradient(
+                90deg,
+                #555 0px,
+                #555 20px,
+                #8b5cf6 20px,
+                #8b5cf6 40px
+            );
+            border-radius: 5px;
+            animation: streetMove 2s linear infinite;
+        }
+
+        .character-loader {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 30px;
+            background: #6366f1;
+            border-radius: 50% 50% 40% 40%;
+            animation: bounce 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes streetMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 0; }
+        }
+
+        @keyframes bounce {
+            0% { bottom: 40px; }
+            100% { bottom: 50px; }
+        }
+
+        .loading-screen h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+
+        .loading-screen p {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        /* 状态提示 */
+        .status-hint {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .status-hint.show {
+            opacity: 1;
+        }
+
+        /* 响应式设计 - 参考GhostMaze的横屏适配 */
+        /* 强制横屏模式 */
+        @media (orientation: landscape) {
+            .game-container {
+                max-width: 100%;
+                max-height: 100vh;
+                width: 100vw;
+                height: 100vh;
+                aspect-ratio: auto;
+            }
+            
+            .hint-box {
+                top: 10px;
+                left: 10px;
+                max-width: 250px;
+                font-size: 0.8rem;
+                padding: 10px;
+            }
+            
+            .dialog-container {
+                width: 95%;
+                max-width: 900px;
+                bottom: 10px;
+            }
+            
+            .dialog-content {
+                max-height: 150px;
+                padding: 15px;
+            }
+            
+            .player-options {
+                padding: 0 15px 15px 15px;
+            }
+            
+            .player-option {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+            
+            /* 移动端控制调整 */
+            .virtual-joystick {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .action-button {
+                width: 60px;
+                height: 60px;
+                font-size: 1.3rem;
+            }
+            
+            .joystick-label, .action-label {
+                font-size: 0.7rem;
+            }
+        }
+
+        /* 竖屏模式 */
+        @media (orientation: portrait) {
+            .game-container {
+                max-width: 100%;
+                max-height: 100%;
+                aspect-ratio: auto;
+            }
+            
+            .mobile-controls {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+            
+            .joystick-container,
+            .action-container {
+                align-items: center;
+            }
+            
+            .dialog-container {
+                left: 20px;
+                right: 20px;
+                transform: translateY(100px);
+            }
+            
+            .dialog-container.active {
+                transform: translateY(0);
+            }
+        }
+
+        /* 小屏幕设备优化 */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .virtual-joystick {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .action-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            
+            .hint-box {
+                display: none; /* 小屏幕隐藏提示框 */
+            }
+            
+            .dialog-container {
+                width: 98%;
+                bottom: 5px;
+            }
+            
+            .joystick-handle {
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        /* 超大屏幕优化 */
+        @media (min-width: 1200px) {
+            .game-container {
+                max-width: 1400px;
+                max-height: 800px;
+            }
+        }
+        
+        /* 防止用户缩放 */
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div class="game-ui">
+            <!-- 对话框 -->
+            <div class="dialog-container" id="dialogContainer">
+                <div class="dialog-header">
+                    <span class="npc-name" id="npcName">街头居民</span>
+                    <button class="close-dialog" id="closeDialog">×</button>
+                </div>
+                <div class="dialog-content" id="dialogContent">
+                    走近NPC并按对话键开始聊天...
+                </div>
+                
+                <!-- 玩家回答选项 -->
+                <div class="player-options" id="playerOptions">
+                    <button class="player-option" data-index="0" id="playerOption0"></button>
+                    <button class="player-option" data-index="1" id="playerOption1"></button>
+                    <button class="player-option" data-index="2" id="playerOption2"></button>
+                </div>
+                
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 移动控制 - 左右对称布局 -->
+            <div class="mobile-controls" id="mobileControls">
+                <!-- 左侧摇杆区域 -->
+                <div class="joystick-container">
+                    <div class="virtual-joystick" id="joystickBase">
+                        <div class="joystick-handle" id="joystickHandle"></div>
+                    </div>
+                    <div class="joystick-label">移动摇杆</div>
+                </div>
+                
+                <!-- 右侧对话按钮区域 -->
+                <div class="action-container">
+                    <button class="action-button" id="talkButton">
+                        <i class="fas fa-comment-alt"></i>
+                    </button>
+                    <div class="action-label">对话</div>
+                </div>
+            </div>
+            
+            <!-- 提示信息 -->
+            <div class="hint-box">
+                <p><i class="fas fa-keyboard"></i> 电脑: 方向键/WASD移动 | Z键对话</p>
+                <p><i class="fas fa-mobile-alt"></i> 手机: 使用摇杆和按钮</p>
+                <p><i class="fas fa-info-circle"></i> 走近彩色方块NPC触发对话</p>
+            </div>
+            
+            <!-- 音效控制 -->
+            <div class="sound-control">
+                <button class="sound-btn" id="soundToggle">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+            </div>
+            
+            <!-- 状态提示 -->
+            <div class="status-hint" id="statusHint"></div>
+        </div>
+    </div>
+    
+    <!-- 加载界面 -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loader">
+            <div class="street-loader"></div>
+            <div class="character-loader"></div>
+        </div>
+        <h1>去逛逛</h1>
+        <p>正在准备游戏世界...</p>
+    </div>
+    
+    <script>
+        // ========== 游戏配置 ==========
+        const CONFIG = {
+            RENDER_SCALE: window.devicePixelRatio || 1, // 使用设备像素比
+            PLAYER_SIZE: 20,
+            PLAYER_COLOR: '#6366f1',
+            PLAYER_SPEED: 4,
+            NPC_SIZE: 16,
+            NPC_COUNT: 20,
+            NPC_SPEED_MIN: 0.2,
+            NPC_SPEED_MAX: 0.7,
+            DIALOG_RADIUS: 60,
+            WORLD_WIDTH: 4000,
+            WORLD_HEIGHT: 4000,
+            CAMERA_SMOOTHNESS: 0.08,
+            STREET_WIDTH: 300,
+            STREET_LINE_SPACING: 60,
+            STREET_LINE_LENGTH: 30,
+            STREET_LINE_WIDTH: 4,
+            BUILDING_SPACING: 150,
+            BUILDING_WIDTH_MIN: 50,
+            BUILDING_WIDTH_MAX: 100,
+            BUILDING_HEIGHT_MIN: 80,
+            BUILDING_HEIGHT_MAX: 200,
+            LAMP_POST_SPACING: 200
+        };
+
+        // ========== AI API配置 ==========
+        const AI_CONFIG = {
+            API_KEY: "e7509fc557394a619bc89d9bc44172ce.qY4uSyCofHoCfQSX",
+            API_URL: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+            MODEL: "glm-4-flash",
+            
+            NPC_PROFILES: [
+                { name: "散步老人", prompt: "你是一个在街道上散步的老人，喜欢讲述过去的故事，说话温和缓慢。" },
+                { name: "上班族", prompt: "你是一个匆忙的上班族，正在赶去公司的路上，说话简洁直接。" },
+                { name: "街头画家", prompt: "你是一个街头画家，正在寻找创作灵感，说话充满艺术气息。" },
+                { name: "迷路游客", prompt: "你是一个第一次来到这条街道的游客，看起来有点迷茫，需要帮助。" },
+                { name: "音乐学生", prompt: "你是一个音乐学校的学生，正在练习小提琴，对艺术充满热情。" },
+                { name: "遛狗女士", prompt: "你是一个在遛狗的中年女士，你的狗叫小白，很友好。" },
+                { name: "外卖小哥", prompt: "你是一个送外卖的小哥，正在寻找送餐地址，有点着急。" },
+                { name: "气球小贩", prompt: "你是一个卖气球的小贩，气球有各种颜色和形状，很会推销。" },
+                { name: "滑板少年", prompt: "你是一个玩滑板的少年，正在练习新技巧，充满活力。" },
+                { name: "清洁工人", prompt: "你是一个街道清洁工，正在认真工作，对街道很熟悉。" },
+                { name: "退休教师", prompt: "你是一个退休的语文老师，喜欢观察街道上的人和事。" },
+                { name: "街头摄影师", prompt: "你是一个街头摄影师，正在捕捉城市的瞬间，眼光敏锐。" },
+                { name: "面包师", prompt: "你是一个面包店的师傅，刚下班准备回家。" },
+                { name: "晨跑者", prompt: "你是一个晨跑爱好者，每天坚持锻炼。" },
+                { name: "书店老板", prompt: "你是一家小书店的老板，喜欢推荐好书。" },
+                { name: "园艺师", prompt: "你负责这条街的绿化，正在修剪花草。" },
+                { name: "邮递员", prompt: "你正在送信，对每家每户都很熟悉。" },
+                { name: "街头艺人", prompt: "你表演杂耍，希望得到路人的赞赏。" },
+                { name: "咖啡师", prompt: "你在街角的咖啡店工作，喜欢咖啡文化。" },
+                { name: "建筑工人", prompt: "你正在附近的工地工作，休息时出来散步。" }
+            ]
+        };
+
+        // ========== 游戏状态 ==========
+        let gameState = {
+            canvas: null,
+            ctx: null,
+            lastTime: 0,
+            player: {
+                x: CONFIG.WORLD_WIDTH / 2,
+                y: CONFIG.WORLD_HEIGHT / 2,
+                velocity: { x: 0, y: 0 },
+                targetVelocity: { x: 0, y: 0 }
+            },
+            npcs: [],
+            camera: { x: 0, y: 0 },
+            keys: {},
+            touch: { active: false, x: 0, y: 0, identifier: null },
+            dialog: {
+                active: false,
+                currentNPC: null,
+                conversationHistory: [],
+                currentStage: 'greeting',
+                playerOptions: [],
+                selectedOption: null,
+                content: '',
+                isTyping: false,
+                typingIndex: 0,
+                typingSpeed: 30
+            },
+            soundEnabled: true,
+            audioContext: null,
+            fps: 0,
+            frameCount: 0,
+            lastFpsUpdate: 0,
+            isMobile: false
+        };
+
+        // ========== 初始化游戏 ==========
+        function initGame() {
+            console.log('正在初始化游戏...');
+            
+            // 检测移动设备
+            gameState.isMobile = detectMobileDevice();
+            
+            // 获取Canvas元素
+            gameState.canvas = document.getElementById('gameCanvas');
+            gameState.ctx = gameState.canvas.getContext('2d');
+            
+            // 设置Canvas尺寸
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('orientationchange', resizeCanvas);
+            
+            // 初始化NPC
+            initNPCs();
+            
+            // 初始化事件监听
+            initEventListeners();
+            
+            // 初始化音效
+            initAudio();
+            
+            // 显示移动控制
+            if (gameState.isMobile) {
+                showMobileControls();
+            }
+            
+            // 隐藏加载界面
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loadingScreen');
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.transition = 'opacity 0.5s ease';
+                
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                    showStatusHint('游戏加载完成！使用方向键或摇杆移动');
+                }, 500);
+            }, 1000);
+            
+            // 开始游戏循环
+            requestAnimationFrame(gameLoop);
+            
+            console.log('游戏初始化完成');
+        }
+
+        // ========== 检测移动设备 ==========
+        function detectMobileDevice() {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                            'ontouchstart' in window || 
+                            navigator.maxTouchPoints > 0;
+            
+            console.log('设备检测:', {
+                userAgent: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+                hasTouch: 'ontouchstart' in window,
+                maxTouchPoints: navigator.maxTouchPoints,
+                isMobile: isMobile
+            });
+            
+            return isMobile;
+        }
+
+        // ========== 显示移动控制 ==========
+        function showMobileControls() {
+            const mobileControls = document.getElementById('mobileControls');
+            if (mobileControls) {
+                mobileControls.style.display = 'flex';
+                console.log('显示移动控制');
+            }
+        }
+
+        // ========== 调整Canvas尺寸 ==========
+        function resizeCanvas() {
+            const container = document.querySelector('.game-container');
+            const canvas = gameState.canvas;
+            
+            // 获取容器实际尺寸
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            console.log('容器尺寸:', containerWidth, 'x', containerHeight);
+            
+            // 计算渲染尺寸
+            const renderWidth = Math.floor(containerWidth * CONFIG.RENDER_SCALE);
+            const renderHeight = Math.floor(containerHeight * CONFIG.RENDER_SCALE);
+            
+            // 设置Canvas内部尺寸
+            canvas.width = renderWidth;
+            canvas.height = renderHeight;
+            
+            // 设置Canvas显示尺寸
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
+            
+            console.log('Canvas尺寸:', {
+                内部: `${canvas.width}x${canvas.height}`,
+                显示: `${canvas.style.width}x${canvas.style.height}`,
+                像素比: CONFIG.RENDER_SCALE
+            });
+            
+            // 确保Canvas居中
+            canvas.style.position = 'absolute';
+            canvas.style.left = '50%';
+            canvas.style.top = '50%';
+            canvas.style.transform = 'translate(-50%, -50%)';
+            
+            // 更新游戏世界的可视区域
+            updateWorldBounds();
+        }
+
+        // ========== 更新世界边界 ==========
+        function updateWorldBounds() {
+            // 根据Canvas尺寸调整世界边界
+            const canvas = gameState.canvas;
+            const scale = CONFIG.RENDER_SCALE;
+            
+            // 确保玩家不会跑到可视区域外
+            const minVisibleX = canvas.width / scale / 2;
+            const minVisibleY = canvas.height / scale / 2;
+            const maxVisibleX = CONFIG.WORLD_WIDTH - minVisibleX;
+            const maxVisibleY = CONFIG.WORLD_HEIGHT - minVisibleY;
+            
+            // 限制玩家位置
+            gameState.player.x = Math.max(minVisibleX, Math.min(maxVisibleX, gameState.player.x));
+            gameState.player.y = Math.max(minVisibleY, Math.min(maxVisibleY, gameState.player.y));
+        }
+
+        // ========== 初始化NPC ==========
+        function initNPCs() {
+            gameState.npcs = [];
+            const margin = 100;
+            const playerSafeRadius = 150;
+            
+            for (let i = 0; i < CONFIG.NPC_COUNT; i++) {
+                let x, y, attempts = 0;
+                let validPosition = false;
+                
+                do {
+                    x = margin + Math.random() * (CONFIG.WORLD_WIDTH - 2 * margin);
+                    const streetY = CONFIG.WORLD_HEIGHT / 2;
+                    const streetHalfWidth = CONFIG.STREET_WIDTH / 2;
+                    const sidewalkRange = 150;
+                    
+                    if (Math.random() > 0.5) {
+                        y = streetY - streetHalfWidth - 30 - Math.random() * sidewalkRange;
+                    } else {
+                        y = streetY + streetHalfWidth + 30 + Math.random() * sidewalkRange;
+                    }
+                    
+                    const distToPlayer = distance(x, y, gameState.player.x, gameState.player.y);
+                    validPosition = distToPlayer >= playerSafeRadius;
+                    attempts++;
+                    
+                } while (!validPosition && attempts < 30);
+                
+                const profileIndex = i % AI_CONFIG.NPC_PROFILES.length;
+                const profile = AI_CONFIG.NPC_PROFILES[profileIndex];
+                const hue = Math.floor(Math.random() * 360);
+                
+                gameState.npcs.push({
+                    id: i,
+                    name: profile.name,
+                    x: x,
+                    y: y,
+                    color: `hsl(${hue}, 75%, 65%)`,
+                    speed: CONFIG.NPC_SPEED_MIN + Math.random() * (CONFIG.NPC_SPEED_MAX - CONFIG.NPC_SPEED_MIN),
+                    direction: Math.random() * Math.PI * 2,
+                    directionTimer: 0,
+                    directionChangeTime: 90 + Math.random() * 180,
+                    profile: profile.prompt,
+                    canTalk: true,
+                    conversationMemory: []
+                });
+            }
+            
+            console.log(`已生成 ${gameState.npcs.length} 个NPC`);
+        }
+
+        // ========== 初始化事件监听 ==========
+        function initEventListeners() {
+            console.log('初始化事件监听...');
+            
+            // 键盘控制
+            window.addEventListener('keydown', (e) => {
+                const key = e.key.toLowerCase();
+                gameState.keys[key] = true;
+                
+                if (key === 'z' && !gameState.dialog.active) {
+                    startDialogWithNearestNPC();
+                }
+                
+                if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+                    e.preventDefault();
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                const key = e.key.toLowerCase();
+                gameState.keys[key] = false;
+            });
+            
+            // 移动端触摸控制
+            if (gameState.isMobile) {
+                initTouchControls();
+            }
+            
+            // 通用事件
+            document.getElementById('closeDialog').addEventListener('click', closeDialog);
+            document.getElementById('soundToggle').addEventListener('click', toggleSound);
+            
+            // 玩家选项按钮事件
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`playerOption${i}`).addEventListener('click', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    selectPlayerOption(index);
+                });
+                
+                // 添加触摸事件
+                document.getElementById(`playerOption${i}`).addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const index = parseInt(e.target.dataset.index);
+                    selectPlayerOption(index);
+                });
+            }
+            
+            // 防止移动端页面滚动
+            document.addEventListener('touchmove', (e) => {
+                if (e.target.tagName !== 'CANVAS') {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            console.log('事件监听初始化完成');
+        }
+
+        // ========== 初始化触摸控制 ==========
+        function initTouchControls() {
+            const joystickBase = document.getElementById('joystickBase');
+            const joystickHandle = document.getElementById('joystickHandle');
+            const talkButton = document.getElementById('talkButton');
+            
+            if (!joystickBase || !joystickHandle || !talkButton) {
+                console.error('移动控制元素未找到');
+                return;
+            }
+            
+            let isTouching = false;
+            let baseRect = null;
+            let baseCenterX = 0, baseCenterY = 0;
+            let maxDistance = 0;
+            
+            function updateJoystickPosition() {
+                baseRect = joystickBase.getBoundingClientRect();
+                baseCenterX = baseRect.left + baseRect.width / 2;
+                baseCenterY = baseRect.top + baseRect.height / 2;
+                maxDistance = baseRect.width / 2 - 25;
+            }
+            
+            // 初始更新
+            updateJoystickPosition();
+            
+            // 窗口大小变化时更新
+            window.addEventListener('resize', updateJoystickPosition);
+            window.addEventListener('orientationchange', updateJoystickPosition);
+            
+            // 触摸开始
+            function handleTouchStart(e) {
+                e.preventDefault();
+                isTouching = true;
+                updateJoystickPosition();
+                handleTouchMove(e);
+            }
+            
+            // 触摸移动
+            function handleTouchMove(e) {
+                if (!isTouching) return;
+                
+                const touch = e.touches[0];
+                const touchX = touch.clientX;
+                const touchY = touch.clientY;
+                
+                const deltaX = touchX - baseCenterX;
+                const deltaY = touchY - baseCenterY;
+                const dist = Math.sqrt(deltaX * deltaY + deltaY * deltaY);
+                const angle = Math.atan2(deltaY, deltaX);
+                
+                const limitedDist = Math.min(dist, maxDistance);
+                
+                const handleX = Math.cos(angle) * limitedDist;
+                const handleY = Math.sin(angle) * limitedDist;
+                
+                // 更新摇杆手柄位置
+                joystickHandle.style.transform = `translate(calc(-50% + ${handleX}px), calc(-50% + ${handleY}px))`;
+                
+                // 更新游戏输入
+                gameState.touch.active = true;
+                gameState.touch.x = handleX / maxDistance;
+                gameState.touch.y = handleY / maxDistance;
+            }
+            
+            // 触摸结束
+            function handleTouchEnd() {
+                isTouching = false;
+                joystickHandle.style.transform = 'translate(-50%, -50%)';
+                gameState.touch.active = false;
+                gameState.touch.x = 0;
+                gameState.touch.y = 0;
+            }
+            
+            // 绑定事件
+            joystickBase.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.addEventListener('touchmove', handleTouchMove, { passive: false });
+            document.addEventListener('touchend', handleTouchEnd);
+            document.addEventListener('touchcancel', handleTouchEnd);
+            
+            // 对话按钮
+            talkButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!gameState.dialog.active) {
+                    startDialogWithNearestNPC();
+                }
+            });
+            
+            console.log('触摸控制初始化完成');
+        }
+
+        // ========== 游戏主循环 ==========
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - gameState.lastTime;
+            gameState.lastTime = timestamp;
+            
+            updateFPS(timestamp);
+            updatePlayer(deltaTime);
+            updateNPCs(deltaTime);
+            updateCamera();
+            updateDialog();
+            
+            render();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ========== 更新玩家 ==========
+        function updatePlayer(deltaTime) {
+            const player = gameState.player;
+            const normalDelta = deltaTime / 16.67;
+            
+            let targetX = 0;
+            let targetY = 0;
+            
+            // 键盘输入
+            if (gameState.keys['arrowleft'] || gameState.keys['a']) targetX -= 1;
+            if (gameState.keys['arrowright'] || gameState.keys['d']) targetX += 1;
+            if (gameState.keys['arrowup'] || gameState.keys['w']) targetY -= 1;
+            if (gameState.keys['arrowdown'] || gameState.keys['s']) targetY += 1;
+            
+            // 触摸输入
+            if (gameState.touch.active) {
+                targetX += gameState.touch.x;
+                targetY += gameState.touch.y;
+            }
+            
+            const magnitude = Math.sqrt(targetX * targetX + targetY * targetY);
+            if (magnitude > 0) {
+                targetX /= magnitude;
+                targetY /= magnitude;
+            }
+            
+            player.targetVelocity.x = targetX;
+            player.targetVelocity.y = targetY;
+            
+            const acceleration = 0.2;
+            player.velocity.x += (player.targetVelocity.x * CONFIG.PLAYER_SPEED - player.velocity.x) * acceleration;
+            player.velocity.y += (player.targetVelocity.y * CONFIG.PLAYER_SPEED - player.velocity.y) * acceleration;
+            
+            player.x += player.velocity.x * normalDelta;
+            player.y += player.velocity.y * normalDelta;
+            
+            player.x = Math.max(CONFIG.PLAYER_SIZE, Math.min(CONFIG.WORLD_WIDTH - CONFIG.PLAYER_SIZE, player.x));
+            player.y = Math.max(CONFIG.PLAYER_SIZE, Math.min(CONFIG.WORLD_HEIGHT - CONFIG.PLAYER_SIZE, player.y));
+        }
+
+        // ========== 更新NPC ==========
+        function updateNPCs(deltaTime) {
+            const normalDelta = deltaTime / 16.67;
+            
+            gameState.npcs.forEach(npc => {
+                npc.directionTimer -= 1;
+                if (npc.directionTimer <= 0) {
+                    npc.direction += (Math.random() - 0.5) * Math.PI;
+                    npc.directionTimer = npc.directionChangeTime;
+                }
+                
+                npc.x += Math.cos(npc.direction) * npc.speed * normalDelta;
+                npc.y += Math.sin(npc.direction) * npc.speed * normalDelta;
+                
+                const margin = CONFIG.NPC_SIZE + 10;
+                if (npc.x < margin || npc.x > CONFIG.WORLD_WIDTH - margin) {
+                    npc.direction = Math.PI - npc.direction;
+                    npc.x = Math.max(margin, Math.min(CONFIG.WORLD_WIDTH - margin, npc.x));
+                }
+                if (npc.y < margin || npc.y > CONFIG.WORLD_HEIGHT - margin) {
+                    npc.direction = -npc.direction;
+                    npc.y = Math.max(margin, Math.min(CONFIG.WORLD_HEIGHT - margin, npc.y));
+                }
+            });
+        }
+
+        // ========== 更新摄像机 ==========
+        function updateCamera() {
+            const player = gameState.player;
+            const canvas = gameState.canvas;
+            const scale = CONFIG.RENDER_SCALE;
+            
+            const targetX = player.x - canvas.width / (2 * scale);
+            const targetY = player.y - canvas.height / (2 * scale);
+            
+            gameState.camera.x += (targetX - gameState.camera.x) * CONFIG.CAMERA_SMOOTHNESS;
+            gameState.camera.y += (targetY - gameState.camera.y) * CONFIG.CAMERA_SMOOTHNESS;
+            
+            const maxX = CONFIG.WORLD_WIDTH - canvas.width / scale;
+            const maxY = CONFIG.WORLD_HEIGHT - canvas.height / scale;
+            
+            gameState.camera.x = Math.max(0, Math.min(maxX, gameState.camera.x));
+            gameState.camera.y = Math.max(0, Math.min(maxY, gameState.camera.y));
+        }
+
+        // ========== 更新对话框 ==========
+        function updateDialog() {
+            if (gameState.dialog.isTyping && gameState.dialog.content) {
+                const dialogContent = document.getElementById('dialogContent');
+                const typingIndicator = document.getElementById('typingIndicator');
+                
+                if (gameState.dialog.typingIndex < gameState.dialog.content.length) {
+                    dialogContent.textContent = gameState.dialog.content.substring(0, gameState.dialog.typingIndex + 1);
+                    gameState.dialog.typingIndex++;
+                    dialogContent.scrollTop = dialogContent.scrollHeight;
+                } else {
+                    gameState.dialog.isTyping = false;
+                    typingIndicator.classList.remove('active');
+                    
+                    if (gameState.dialog.currentStage === 'greeting') {
+                        generatePlayerOptions();
+                    } else if (gameState.dialog.currentStage === 'npcResponse') {
+                        checkAndContinueConversation();
+                    }
+                }
+            }
+        }
+
+        // ========== 渲染游戏 ==========
+        function render() {
+            const ctx = gameState.ctx;
+            const canvas = gameState.canvas;
+            const camera = gameState.camera;
+            
+            // 清除画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            
+            // 应用摄像机变换
+            const scale = CONFIG.RENDER_SCALE;
+            ctx.scale(scale, scale);
+            ctx.translate(-camera.x, -camera.y);
+            
+            // 绘制背景
+            drawBackground(ctx);
+            
+            // 绘制NPC
+            drawNPCs(ctx);
+            
+            // 绘制玩家
+            drawPlayer(ctx);
+            
+            ctx.restore();
+        }
+
+        // ========== 绘制背景 ==========
+        function drawBackground(ctx) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, CONFIG.WORLD_HEIGHT);
+            gradient.addColorStop(0, '#0f3460');
+            gradient.addColorStop(1, '#1a1a2e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+            
+            const streetY = CONFIG.WORLD_HEIGHT / 2;
+            const streetHalfWidth = CONFIG.STREET_WIDTH / 2;
+            
+            // 街道
+            ctx.fillStyle = '#2d3748';
+            ctx.fillRect(0, streetY - streetHalfWidth, CONFIG.WORLD_WIDTH, CONFIG.STREET_WIDTH);
+            
+            // 街道中线
+            ctx.strokeStyle = '#fbbf24';
+            ctx.lineWidth = CONFIG.STREET_LINE_WIDTH;
+            ctx.setLineDash([CONFIG.STREET_LINE_LENGTH, CONFIG.STREET_LINE_SPACING]);
+            ctx.beginPath();
+            ctx.moveTo(0, streetY);
+            ctx.lineTo(CONFIG.WORLD_WIDTH, streetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 建筑
+            ctx.fillStyle = '#1e293b';
+            for (let x = 50; x < CONFIG.WORLD_WIDTH; x += CONFIG.BUILDING_SPACING) {
+                const buildingWidth = CONFIG.BUILDING_WIDTH_MIN + Math.random() * (CONFIG.BUILDING_WIDTH_MAX - CONFIG.BUILDING_WIDTH_MIN);
+                const buildingHeight = CONFIG.BUILDING_HEIGHT_MIN + Math.random() * (CONFIG.BUILDING_HEIGHT_MAX - CONFIG.BUILDING_HEIGHT_MIN);
+                
+                // 左边建筑
+                ctx.fillRect(x, streetY - streetHalfWidth - buildingHeight, buildingWidth, buildingHeight);
+                
+                // 右边建筑
+                ctx.fillRect(x, streetY + streetHalfWidth, buildingWidth, buildingHeight);
+                
+                // 窗户
+                ctx.fillStyle = '#fbbf24';
+                const windowSize = 6;
+                const windowSpacing = 12;
+                
+                for (let wy = 10; wy < buildingHeight - 20; wy += windowSpacing) {
+                    for (let wx = 10; wx < buildingWidth - 10; wx += windowSpacing) {
+                        if (Math.random() > 0.4) {
+                            ctx.fillRect(x + wx, streetY - streetHalfWidth - buildingHeight + wy, windowSize, windowSize);
+                            ctx.fillRect(x + wx, streetY + streetHalfWidth + wy, windowSize, windowSize);
+                        }
+                    }
+                }
+                
+                ctx.fillStyle = '#1e293b';
+            }
+            
+            // 路灯
+            for (let x = 100; x < CONFIG.WORLD_WIDTH; x += CONFIG.LAMP_POST_SPACING) {
+                // 灯杆
+                ctx.fillStyle = '#4b5563';
+                ctx.fillRect(x - 3, streetY - streetHalfWidth - 80, 6, 80);
+                ctx.fillRect(x - 3, streetY + streetHalfWidth, 6, 80);
+                
+                // 灯头
+                ctx.fillStyle = '#fef3c7';
+                ctx.beginPath();
+                ctx.arc(x, streetY - streetHalfWidth - 80, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, streetY + streetHalfWidth + 80, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 灯光效果
+                ctx.fillStyle = 'rgba(254, 243, 199, 0.15)';
+                ctx.beginPath();
+                ctx.arc(x, streetY - streetHalfWidth - 80, 35, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, streetY + streetHalfWidth + 80, 35, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ========== 绘制NPC ==========
+        function drawNPCs(ctx) {
+            const player = gameState.player;
+            
+            gameState.npcs.forEach(npc => {
+                ctx.fillStyle = npc.color;
+                ctx.fillRect(
+                    npc.x - CONFIG.NPC_SIZE / 2,
+                    npc.y - CONFIG.NPC_SIZE / 2,
+                    CONFIG.NPC_SIZE,
+                    CONFIG.NPC_SIZE
+                );
+                
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(
+                    npc.x - CONFIG.NPC_SIZE / 2,
+                    npc.y - CONFIG.NPC_SIZE / 2,
+                    CONFIG.NPC_SIZE,
+                    CONFIG.NPC_SIZE
+                );
+                
+                const dist = distance(npc.x, npc.y, player.x, player.y);
+                
+                if (dist < CONFIG.DIALOG_RADIUS + CONFIG.PLAYER_SIZE) {
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(
+                        npc.x - CONFIG.NPC_SIZE / 2 - 3,
+                        npc.y - CONFIG.NPC_SIZE / 2 - 3,
+                        CONFIG.NPC_SIZE + 6,
+                        CONFIG.NPC_SIZE + 6
+                    );
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(npc.name, npc.x, npc.y - CONFIG.NPC_SIZE / 2 - 5);
+                    
+                    if (!gameState.dialog.active) {
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.font = '10px Arial';
+                        ctx.fillText('按Z键对话', npc.x, npc.y - CONFIG.NPC_SIZE / 2 - 20);
+                    }
+                }
+            });
+        }
+
+        // ========== 绘制玩家 ==========
+        function drawPlayer(ctx) {
+            const player = gameState.player;
+            
+            ctx.fillStyle = CONFIG.PLAYER_COLOR;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, CONFIG.PLAYER_SIZE, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('你', player.x, player.y - CONFIG.PLAYER_SIZE - 5);
+        }
+
+        // ========== 寻找最近的NPC ==========
+        function findNearestNPC() {
+            const player = gameState.player;
+            let nearestNPC = null;
+            let minDistance = Infinity;
+            
+            for (const npc of gameState.npcs) {
+                const dist = distance(npc.x, npc.y, player.x, player.y);
+                if (dist < CONFIG.DIALOG_RADIUS + CONFIG.PLAYER_SIZE && dist < minDistance) {
+                    minDistance = dist;
+                    nearestNPC = npc;
+                }
+            }
+            
+            return nearestNPC;
+        }
+
+        // ========== 开始与NPC对话 ==========
+        async function startDialogWithNearestNPC() {
+            if (gameState.dialog.active) {
+                closeDialog();
+                return;
+            }
+            
+            const npc = findNearestNPC();
+            if (!npc) {
+                showStatusHint('附近没有NPC可以对话');
+                return;
+            }
+            
+            if (!npc.canTalk) {
+                showStatusHint('这个NPC暂时不想聊天');
+                return;
+            }
+            
+            console.log(`开始与NPC对话: ${npc.name}`);
+            gameState.dialog.active = true;
+            gameState.dialog.currentNPC = npc;
+            gameState.dialog.currentStage = 'greeting';
+            gameState.dialog.conversationHistory = [];
+            gameState.dialog.playerOptions = [];
+            gameState.dialog.selectedOption = null;
+            
+            document.getElementById('npcName').textContent = npc.name;
+            document.getElementById('typingIndicator').classList.add('active');
+            document.getElementById('dialogContainer').classList.add('active');
+            document.getElementById('playerOptions').classList.remove('active');
+            playSound('dialogOpen');
+            
+            try {
+                const greeting = await generateNPCOpening(npc.profile);
+                displayNPCMessage(greeting);
+                
+                gameState.dialog.conversationHistory.push({
+                    role: 'npc',
+                    content: greeting
+                });
+                
+            } catch (error) {
+                console.error('生成NPC开场白失败:', error);
+                const fallbacks = ["你好！今天天气真不错。", "嗨，我看到你在散步。", "你好啊，需要帮忙吗？"];
+                const fallbackGreeting = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                displayNPCMessage(fallbackGreeting);
+                
+                gameState.dialog.conversationHistory.push({
+                    role: 'npc',
+                    content: fallbackGreeting
+                });
+            }
+        }
+
+        // ========== 生成NPC开场白 ==========
+        async function generateNPCOpening(profilePrompt) {
+            const messages = [
+                {
+                    role: "system",
+                    content: `你是一个在无尽街道上的NPC。${profilePrompt}。请用非常简短的一两句话（20字以内）与路过的行人打招呼。语气自然友好。`
+                },
+                { role: "user", content: "（你看到有人向你走来）" }
+            ];
+            
+            const response = await fetch(AI_CONFIG.API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AI_CONFIG.API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: AI_CONFIG.MODEL,
+                    messages: messages,
+                    max_tokens: 50,
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content.trim();
+            } else {
+                throw new Error('API返回格式不正确');
+            }
+        }
+
+        // ========== 显示NPC消息 ==========
+        function displayNPCMessage(message) {
+            gameState.dialog.content = message;
+            gameState.dialog.typingIndex = 0;
+            gameState.dialog.isTyping = true;
+            document.getElementById('dialogContent').textContent = '';
+            document.getElementById('typingIndicator').classList.add('active');
+        }
+
+        // ========== 生成玩家选项 ==========
+        async function generatePlayerOptions() {
+            const npc = gameState.dialog.currentNPC;
+            const lastNPCMessage = gameState.dialog.conversationHistory[gameState.dialog.conversationHistory.length - 1].content;
+            
+            document.getElementById('typingIndicator').classList.add('active');
+            
+            try {
+                const options = await generatePlayerResponseOptions(npc.profile, lastNPCMessage);
+                gameState.dialog.playerOptions = options;
+                displayPlayerOptions(options);
+            } catch (error) {
+                console.error('生成玩家选项失败:', error);
+                const fallbackOptions = [
+                    "你好！",
+                    "今天天气不错。",
+                    "我得继续走了。"
+                ];
+                gameState.dialog.playerOptions = fallbackOptions;
+                displayPlayerOptions(fallbackOptions);
+            }
+        }
+
+        // ========== 生成玩家回应选项 ==========
+        async function generatePlayerResponseOptions(profilePrompt, lastNPCMessage) {
+            const messages = [
+                {
+                    role: "system",
+                    content: `你是一个在无尽街道上的NPC。${profilePrompt}。你刚刚说了："${lastNPCMessage}"。请为路过的行人生成3个简短、自然、不同的回应选项（每个选项不超过10个字）。请以JSON数组格式返回，例如：["选项1", "选项2", "选项3"]。`
+                },
+                { role: "user", content: "请生成3个回应选项：" }
+            ];
+            
+            const response = await fetch(AI_CONFIG.API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AI_CONFIG.API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: AI_CONFIG.MODEL,
+                    messages: messages,
+                    max_tokens: 100,
+                    temperature: 0.8,
+                    stream: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                const responseText = data.choices[0].message.content.trim();
+                
+                try {
+                    const cleanedText = responseText.replace(/```json|```/g, '').trim();
+                    const options = JSON.parse(cleanedText);
+                    
+                    if (Array.isArray(options) && options.length >= 3) {
+                        return options.slice(0, 3);
+                    }
+                } catch (e) {
+                    console.warn('无法解析JSON响应，尝试提取选项:', e);
+                    
+                    const lines = responseText.split('\n').filter(line => line.trim().length > 0);
+                    const extractedOptions = [];
+                    
+                    for (let line of lines) {
+                        const cleanLine = line.replace(/^\d+[\.、\)\]]\s*/, '').trim();
+                        if (cleanLine.length > 0 && cleanLine.length < 20) {
+                            extractedOptions.push(cleanLine);
+                        }
+                        if (extractedOptions.length >= 3) break;
+                    }
+                    
+                    if (extractedOptions.length >= 3) {
+                        return extractedOptions.slice(0, 3);
+                    }
+                }
+                
+                throw new Error('无法从响应中提取有效选项');
+                
+            } else {
+                throw new Error('API返回格式不正确');
+            }
+        }
+
+        // ========== 显示玩家选项 ==========
+        function displayPlayerOptions(options) {
+            document.getElementById('typingIndicator').classList.remove('active');
+            
+            for (let i = 0; i < 3; i++) {
+                const optionButton = document.getElementById(`playerOption${i}`);
+                if (i < options.length) {
+                    optionButton.textContent = options[i];
+                    optionButton.style.display = 'block';
+                } else {
+                    optionButton.style.display = 'none';
+                }
+            }
+            
+            document.getElementById('playerOptions').classList.add('active');
+            gameState.dialog.currentStage = 'playerOptions';
+        }
+
+        // ========== 玩家选择选项 ==========
+        async function selectPlayerOption(index) {
+            if (index < 0 || index >= gameState.dialog.playerOptions.length) return;
+            
+            const selectedOption = gameState.dialog.playerOptions[index];
+            gameState.dialog.selectedOption = selectedOption;
+            
+            gameState.dialog.conversationHistory.push({
+                role: 'player',
+                content: selectedOption
+            });
+            
+            document.getElementById('playerOptions').classList.remove('active');
+            document.getElementById('dialogContent').textContent = `你：${selectedOption}`;
+            document.getElementById('typingIndicator').classList.add('active');
+            
+            gameState.dialog.currentStage = 'npcResponse';
+            
+            setTimeout(async () => {
+                try {
+                    const npcResponse = await generateNPCResponse(
+                        gameState.dialog.currentNPC.profile,
+                        gameState.dialog.conversationHistory
+                    );
+                    
+                    displayNPCMessage(npcResponse);
+                    
+                    gameState.dialog.conversationHistory.push({
+                        role: 'npc',
+                        content: npcResponse
+                    });
+                    
+                } catch (error) {
+                    console.error('生成NPC回应失败:', error);
+                    const fallbackResponses = [
+                        "嗯，我明白了。",
+                        "原来如此。",
+                        "很高兴和你聊天。"
+                    ];
+                    const fallbackResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+                    displayNPCMessage(fallbackResponse);
+                    
+                    gameState.dialog.conversationHistory.push({
+                        role: 'npc',
+                        content: fallbackResponse
+                    });
+                }
+            }, 1000);
+        }
+
+        // ========== 生成NPC回应 ==========
+        async function generateNPCResponse(profilePrompt, conversationHistory) {
+            const messages = [
+                {
+                    role: "system",
+                    content: `你是一个在无尽街道上的NPC。${profilePrompt}。请根据对话历史给出简短、自然的回应（不超过20个字）。如果对话可以自然结束，可以给出结束对话的表示。`
+                }
+            ];
+            
+            conversationHistory.forEach(entry => {
+                if (entry.role === 'npc') {
+                    messages.push({ role: "assistant", content: entry.content });
+                } else if (entry.role === 'player') {
+                    messages.push({ role: "user", content: entry.content });
+                }
+            });
+            
+            const response = await fetch(AI_CONFIG.API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AI_CONFIG.API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: AI_CONFIG.MODEL,
+                    messages: messages,
+                    max_tokens: 50,
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+                return data.choices[0].message.content.trim();
+            } else {
+                throw new Error('API返回格式不正确');
+            }
+        }
+
+        // ========== 检查并继续对话 ==========
+        function checkAndContinueConversation() {
+            const conversationLength = gameState.dialog.conversationHistory.length;
+            
+            if (conversationLength >= 6) {
+                setTimeout(() => {
+                    closeDialog();
+                }, 2000);
+                return;
+            }
+            
+            const lastMessage = gameState.dialog.conversationHistory[conversationLength - 1].content;
+            const endingPhrases = ['再见', '下次聊', '先走了', '拜拜', '再会', '回头见', '告辞'];
+            
+            const isEnding = endingPhrases.some(phrase => lastMessage.includes(phrase));
+            
+            if (isEnding) {
+                setTimeout(() => {
+                    closeDialog();
+                }, 1500);
+            } else {
+                setTimeout(() => {
+                    generatePlayerOptions();
+                }, 1000);
+            }
+        }
+
+        // ========== 关闭对话框 ==========
+        function closeDialog() {
+            gameState.dialog.active = false;
+            gameState.dialog.currentNPC = null;
+            gameState.dialog.isTyping = false;
+            
+            document.getElementById('dialogContainer').classList.remove('active');
+            document.getElementById('typingIndicator').classList.remove('active');
+            document.getElementById('playerOptions').classList.remove('active');
+            
+            playSound('dialogClose');
+        }
+
+        // ========== 工具函数 ==========
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        }
+
+        function showStatusHint(text) {
+            const hint = document.getElementById('statusHint');
+            hint.textContent = text;
+            hint.classList.add('show');
+            
+            setTimeout(() => {
+                hint.classList.remove('show');
+            }, 3000);
+        }
+
+        function updateFPS(timestamp) {
+            gameState.frameCount++;
+            
+            if (timestamp - gameState.lastFpsUpdate >= 1000) {
+                gameState.fps = Math.round((gameState.frameCount * 1000) / (timestamp - gameState.lastFpsUpdate));
+                gameState.frameCount = 0;
+                gameState.lastFpsUpdate = timestamp;
+            }
+        }
+
+        // ========== 音效系统 ==========
+        function initAudio() {
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn('Web Audio API不支持，音效已禁用');
+                gameState.audioContext = null;
+            }
+        }
+
+        function playSound(type) {
+            if (!gameState.soundEnabled || !gameState.audioContext) return;
+            
+            try {
+                const oscillator = gameState.audioContext.createOscillator();
+                const gainNode = gameState.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(gameState.audioContext.destination);
+                
+                switch (type) {
+                    case 'dialogOpen':
+                        oscillator.frequency.setValueAtTime(523.25, gameState.audioContext.currentTime);
+                        oscillator.frequency.exponentialRampToValueAtTime(659.25, gameState.audioContext.currentTime + 0.1);
+                        gainNode.gain.setValueAtTime(0.1, gameState.audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + 0.3);
+                        oscillator.start(gameState.audioContext.currentTime);
+                        oscillator.stop(gameState.audioContext.currentTime + 0.3);
+                        break;
+                        
+                    case 'dialogClose':
+                        oscillator.frequency.setValueAtTime(659.25, gameState.audioContext.currentTime);
+                        oscillator.frequency.exponentialRampToValueAtTime(523.25, gameState.audioContext.currentTime + 0.1);
+                        gainNode.gain.setValueAtTime(0.1, gameState.audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + 0.3);
+                        oscillator.start(gameState.audioContext.currentTime);
+                        oscillator.stop(gameState.audioContext.currentTime + 0.3);
+                        break;
+                }
+            } catch (e) {
+                console.warn('音效播放失败:', e);
+            }
+        }
+
+        function toggleSound() {
+            gameState.soundEnabled = !gameState.soundEnabled;
+            const icon = document.querySelector('#soundToggle i');
+            
+            if (gameState.soundEnabled) {
+                icon.className = 'fas fa-volume-up';
+                showStatusHint('音效已开启');
+            } else {
+                icon.className = 'fas fa-volume-mute';
+                showStatusHint('音效已关闭');
+            }
+        }
+
+        // ========== 初始化 ==========
+        window.addEventListener('load', () => {
+            console.log('页面加载完成，开始初始化游戏...');
+            
+            // 强制横屏提示
+            if (window.innerHeight > window.innerWidth) {
+                showStatusHint('请将设备横屏以获得最佳体验');
+            }
+            
+            // 初始检测设备方向
+            checkOrientation();
+            
+            // 监听设备方向变化
+            window.addEventListener('orientationchange', checkOrientation);
+            window.addEventListener('resize', checkOrientation);
+            
+            // 初始化游戏
+            initGame();
+        });
+
+        // 检测设备方向
+        function checkOrientation() {
+            if (window.innerHeight > window.innerWidth) {
+                console.log('竖屏模式');
+                // 可以在这里添加竖屏特定逻辑
+            } else {
+                console.log('横屏模式');
+                // 可以在这里添加横屏特定逻辑
+            }
+        }
+
+        // 确保音频在用户交互后恢复
+        document.addEventListener('click', () => {
+            if (gameState.audioContext && gameState.audioContext.state === 'suspended') {
+                gameState.audioContext.resume();
+            }
+        }, { once: true });
+    </script>
+    
+    <!-- Font Awesome图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</body>
 </html>
